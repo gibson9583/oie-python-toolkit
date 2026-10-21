@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.github.gibson9583</groupId>
         <artifactId>oie-python-toolkit</artifactId>
-        <version>0.1.0</version>
+        <version>1.0.0</version>
     </parent>
     <artifactId>oie-python-toolkit-shared</artifactId>
     <name>OIE Python Toolkit - Shared</name>

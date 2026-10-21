@@ -142,7 +142,7 @@ class WorkerProcessTest {
         String header = "#!" + Interpreters.resolve("python3") + "\nimport os,sys,json,struct,time\nos.setsid()\n"
                 + "def read():\n    h=sys.stdin.buffer.read(4)\n    n=struct.unpack('>I',h)[0]\n    return json.loads(sys.stdin.buffer.read(n))\n"
                 + "def send(o):\n    b=json.dumps(o).encode()\n    sys.stdout.buffer.write(struct.pack('>I',len(b))+b)\n    sys.stdout.buffer.flush()\n"
-                + "r=read()\nsend({'type':'HELLO','id':r['id'],'protocol':1,'contract':1,'sdk':'0.1.0','pid':os.getpid(),'processGroupLeader':True})\n";
+                + "r=read()\nsend({'type':'HELLO','id':r['id'],'protocol':1,'contract':1,'sdk':'1.0.0','pid':os.getpid(),'processGroupLeader':True})\n";
         Files.writeString(script, header + body);
         assertTrue(script.toFile().setExecutable(true));
         return script;

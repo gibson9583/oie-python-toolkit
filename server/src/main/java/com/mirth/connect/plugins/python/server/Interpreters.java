@@ -145,7 +145,7 @@ public final class Interpreters {
         }
         String version = String.valueOf(described.get("version"));
         if (!supportedVersion(version)) {
-            throw new Unavailable("Runtime \"" + runtimeId + "\" is Python " + version + "; Python 3.9 or later is required");
+            throw new Unavailable("Runtime \"" + runtimeId + "\" is Python " + version + "; Python 3.11 or later is required");
         }
         Map<String, Object> target = new LinkedHashMap<>();
         target.put("policyVersion", TARGET_POLICY_VERSION);
@@ -172,7 +172,7 @@ public final class Interpreters {
         try {
             int major = Integer.parseInt(parts[0]);
             int minor = Integer.parseInt(parts[1]);
-            return major == 3 && minor >= 9;
+            return major == 3 && minor >= 11;
         } catch (RuntimeException e) {
             return false;
         }

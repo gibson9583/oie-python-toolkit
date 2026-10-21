@@ -2,6 +2,7 @@
 package com.mirth.connect.plugins.python.server;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -316,7 +317,7 @@ public final class ArtifactStore {
                     return 0L;
                 }
             }).sum();
-        } catch (IOException e) {
+        } catch (IOException | UncheckedIOException e) {
             return -1;
         }
     }

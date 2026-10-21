@@ -45,6 +45,17 @@ final class BuiltInEnvironment {
         return raw == null || raw.isEmpty() ? PythonContract.DEFAULT_PROFILE_ID : raw;
     }
 
+    /** Presentation only: old persisted labels must not invalidate prepared deployments. */
+    static String displayName(PythonApi.Profile profile) {
+        if (owned(profile)) {
+            String legacy = "Vanilla Python (standard library)";
+            if (profile.name.equals(legacy) || profile.name.startsWith(legacy + " (built in)")) {
+                return PythonContract.DEFAULT_PROFILE_NAME + profile.name.substring(legacy.length());
+            }
+        }
+        return profile.name;
+    }
+
     static void requireWritable(String id) {
         if (PythonContract.DEFAULT_PROFILE_ID.equals(id)) throw ApiFailure.conflict("BUILTIN_PROFILE_READ_ONLY",
                 "The built-in standard-library environment is managed automatically. Create a separate environment for packages.");

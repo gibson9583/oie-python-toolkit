@@ -18,7 +18,7 @@ public final class PythonContract {
     public static final String PROTOCOL = "Python";
     /** Stable installation-independent standard-library environment identity. */
     public static final String DEFAULT_PROFILE_ID = "232030e4-aa0d-39fc-a889-fed1318ef412";
-    public static final String DEFAULT_PROFILE_NAME = "Vanilla Python (standard library)";
+    public static final String DEFAULT_PROFILE_NAME = "Python";
     public static final String BUILTIN_SOURCE_ID = "builtin-stdlib";
 
     public static final String ROLE_SOURCE_TRANSFORMER = "source-transformer";

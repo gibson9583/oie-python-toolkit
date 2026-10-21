@@ -22,7 +22,7 @@
             </includes>
         </fileSet>
     </fileSets>
-    <!-- Resolve the two direct runtime dependencies for each assembly. Never
+    <!-- Resolve the three direct runtime dependencies for each assembly. Never
          pick up stale dist/libs files or the engine's transitive libraries. -->
     <dependencySets>
         <dependencySet>

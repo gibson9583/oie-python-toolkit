@@ -200,7 +200,7 @@ public final class Deployments {
                     continue;
                 }
                 if (profile.archived) {
-                    reject.accept(label + ": script environment \"" + profile.name + "\" is archived.");
+                    reject.accept(label + ": script environment \"" + BuiltInEnvironment.displayName(profile) + "\" is archived.");
                     continue;
                 }
                 if (surface.config.getContractVersion() != PythonContract.CONTRACT_VERSION) {
@@ -222,7 +222,7 @@ public final class Deployments {
                 }
                 ResolvedLock lock = profile.resolvedLocks.get(target.fingerprint);
                 if (lock == null || !profile.definitionFingerprint.equals(lock.definitionFingerprint)) {
-                    reject.accept(label + ": script environment \"" + profile.name + "\" is not prepared for revision " + profile.revision
+                    reject.accept(label + ": script environment \"" + BuiltInEnvironment.displayName(profile) + "\" is not prepared for revision " + profile.revision
                             + ". " + BuiltInEnvironment.preparationHint(profile));
                     continue;
                 }
@@ -234,14 +234,14 @@ public final class Deployments {
                 String digest = ArtifactStore.artifactDigest(lock, target, runtime.sdk);
                 ArtifactStore.Lease lease = runtime.artifacts.acquire(digest);
                 if (lease == null) {
-                    reject.accept(label + ": script environment \"" + profile.name + "\" is not prepared on this node (" + runtime.config.nodeId
+                    reject.accept(label + ": script environment \"" + BuiltInEnvironment.displayName(profile) + "\" is not prepared on this node (" + runtime.config.nodeId
                             + "). " + BuiltInEnvironment.preparationHint(profile));
                     continue;
                 }
                 leases.add(lease);
                 String specDigest = PythonContract.specDigest(surface.config);
                 BoundSpec spec = new BoundSpec(specDigest, surface.role, surface.metaDataId, surface.connectorName, label,
-                        PythonContract.normalizeSource(surface.config.getPythonScript()), profile.id, profile.name, profile.revision, lock.lockDigest,
+                        PythonContract.normalizeSource(surface.config.getPythonScript()), profile.id, BuiltInEnvironment.displayName(profile), profile.revision, lock.lockDigest,
                         lease, timeout);
                 if (specs.putIfAbsent(spec.key(), spec) != null) {
                     // An identical script on the same connector and role shares the first registration.

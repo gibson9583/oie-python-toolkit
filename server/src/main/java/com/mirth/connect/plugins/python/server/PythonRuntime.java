@@ -371,7 +371,7 @@ public final class PythonRuntime {
         v.builtInDefault = BuiltInEnvironment.owned(p);
         v.revision = p.revision;
         v.registryEpoch = epoch;
-        v.name = p.name;
+        v.name = BuiltInEnvironment.displayName(p);
         v.description = p.description;
         v.archived = p.archived;
         v.language = p.language;

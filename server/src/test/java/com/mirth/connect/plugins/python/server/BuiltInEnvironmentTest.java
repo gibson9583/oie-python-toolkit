@@ -148,6 +148,27 @@ class BuiltInEnvironmentTest {
         }
     }
 
+    @Test void legacyOwnedLabelsArePresentationOnlyAndCustomNamesRemainUntouched() throws Exception {
+        Memory memory = new Memory(); RegistryStore registry = store(memory);
+        var builtin = BuiltInEnvironment.definition(config(Map.of()));
+        builtin.name = "Vanilla Python (standard library) (built in) 2";
+        var custom = custom(UUID.randomUUID().toString(), "Vanilla Python (standard library)");
+        registry.change(next -> { next.profiles.put(builtin.id, builtin); next.profiles.put(custom.id, custom); return true; });
+        String stored = memory.json; int writes = memory.writes;
+        try (RuntimeFixture fixture = new RuntimeFixture(runtime(registry))) {
+            var view = fixture.runtime.view(builtin, registry.epoch(), new PythonApi.LocalReadiness());
+            assertEquals("Python (built in) 2", view.name);
+            assertEquals(builtin.id, view.id); assertEquals(builtin.revision, view.revision);
+            assertEquals(builtin.definitionFingerprint, view.definitionFingerprint); assertTrue(view.builtInDefault);
+            assertEquals(custom.name, fixture.runtime.view(custom, registry.epoch(), new PythonApi.LocalReadiness()).name);
+            assertEquals(stored, memory.json); assertEquals(writes, memory.writes);
+            builtin.name = "Vanilla Python (standard library)";
+            assertEquals("Python", BuiltInEnvironment.displayName(builtin));
+            builtin.builtInDefault = false;
+            assertEquals(builtin.name, BuiltInEnvironment.displayName(builtin));
+        }
+    }
+
     @Test void builtInIsQuotaNeutralButAnExtraCustomProfileStillFailsBeforeStorage() throws Exception {
         Memory memory = new Memory(); RegistryStore registry = store(memory);
         registry.change(next -> { for (int i = 0; i < 1000; i++) {

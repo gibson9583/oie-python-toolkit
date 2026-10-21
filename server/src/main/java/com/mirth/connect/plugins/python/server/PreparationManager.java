@@ -227,7 +227,7 @@ public final class PreparationManager {
         Profile profile = RegistryStore.requireProfile(snapshot, profileId);
         RegistryStore.checkRevision(profile, expectedRevision);
         if (profile.archived) {
-            throw ApiFailure.conflict("PROFILE_ARCHIVED", "Environment \"" + profile.name + "\" is archived");
+            throw ApiFailure.conflict("PROFILE_ARCHIVED", "Environment \"" + BuiltInEnvironment.displayName(profile) + "\" is archived");
         }
         // No process launch on the request thread. The immutable approved
         // runtime policy identifies the queued work; its actual target is

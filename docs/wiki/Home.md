@@ -44,7 +44,7 @@ All eight Python editors use Python IntelliSense and formatting when their envir
 
 ## Compatibility and deeper references
 
-The plugin targets stock OIE 4.6.0 and 4.7.0 with Web Administrator extension API 4.10 or newer. Runtime execution requires an approved CPython 3.9+ interpreter with `venv` and `ensurepip`; the plugin does not install an operating-system interpreter. The Web Administrator is the supported authoring interface. Swing connector placeholders preserve existing scripts but do not provide Python authoring.
+The plugin targets stock OIE 4.6.0 and 4.7.0 with Web Administrator extension API 4.10 or newer. Runtime execution requires an approved CPython 3.11+ interpreter with `venv` and `ensurepip`; the plugin does not install an operating-system interpreter. The Web Administrator is the supported authoring interface. Swing connector placeholders preserve existing scripts but do not provide Python authoring.
 
 Python lifecycle/global/deploy scripts, Iterator-nested Python rules/steps, Java/Rhino interop, JSON scalar transformer roots, and binary transformer replacements are outside the supported contract. For exact qualifications and operational limits, use the maintained references below; availability of a feature is not a release-readiness certification.
 

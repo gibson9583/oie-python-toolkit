@@ -3,10 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DEFAULT_PROFILE_ID,DEFAULT_PROFILE_NAME,defaults,validateRuntime,testRuntime} from '../web/ui-model.mjs';
-import {defaultProfile,automaticEnvironment,selectedEnvironment,environmentState} from '../web/default-environment.mjs';
+import {defaultProfile,automaticEnvironment,selectedEnvironment,environmentState,unresolvedEnvironmentName} from '../web/default-environment.mjs';
 const profile=()=>({id:DEFAULT_PROFILE_ID,name:DEFAULT_PROFILE_NAME,registryEpoch:'epoch',revision:1,builtInDefault:true,archived:false,readiness:{state:'ready',pythonVersion:'3.14.6'}});
 const listing=()=>({defaultProfileId:DEFAULT_PROFILE_ID,profiles:[{id:'other',name:'Other'},profile()]});
-test('new scripts and connectors share the stable vanilla binding and role starter',()=>{
+test('new scripts and connectors share the stable Python binding and role starter',()=>{
     const java=readFileSync(new URL('../../../shared/src/main/java/com/mirth/connect/plugins/python/PythonContract.java',import.meta.url),'utf8');
     assert.ok(java.includes(`DEFAULT_PROFILE_ID = "${DEFAULT_PROFILE_ID}"`));assert.ok(java.includes(`DEFAULT_PROFILE_NAME = "${DEFAULT_PROFILE_NAME}"`));
     for(const role of ['source-transformer','destination-transformer','response-transformer','reader','writer']){const value=defaults(role);assert.equal(value.pythonScript,role==='reader'||role==='writer'?'return None\n':'');assert.deepEqual([value.environmentProfileId,value.environmentNameHint],[DEFAULT_PROFILE_ID,DEFAULT_PROFILE_NAME]);}
@@ -29,4 +29,13 @@ test('missing authoritative default or unowned reserved UUID prevents Validate a
         const subject={...defaults(),pythonScript:'pass\n'};let posts=0;const api={get:async path=>JSON.stringify(path.endsWith('/runtime')?{nodeId:'node',defaultProfileId}:{...profile(),builtInDefault}),post:async()=>{posts++;throw new Error('Must remain unsent');}};
         assert.equal((await validateRuntime(api,subject,{role:'source-transformer',elementPath:[0]})).status,'unavailable');await assert.rejects(testRuntime(api,subject,{role:'source-transformer',elementPath:[0]},{}),/built-in Python environment/);assert.equal(posts,0);
     }
+});
+
+test('historical unresolved built-in hints use Python without changing custom labels or saved bindings',()=>{
+    const saved={environmentProfileId:DEFAULT_PROFILE_ID,environmentNameHint:'Vanilla Python (standard library)'};
+    const before=structuredClone(saved);
+    assert.equal(unresolvedEnvironmentName(saved),'Python');
+    assert.deepEqual(saved,before);
+    assert.equal(unresolvedEnvironmentName({...saved,environmentProfileId:'custom'}),saved.environmentNameHint);
+    assert.equal(unresolvedEnvironmentName({environmentProfileId:'missing'}),'missing');
 });

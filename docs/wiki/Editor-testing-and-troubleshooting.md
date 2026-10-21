@@ -27,6 +27,8 @@ Formatting is conservative. Selection formatting covers the full touched lines. 
 
 If Monaco or its grammar cannot load, the editable text fallback preserves the script but cannot provide the full Monaco experience. A functioning text area is not evidence that completion or formatting is available. Check extension assets, runtime readiness, permissions, and diagnostics before assuming an editor defect.
 
+Web Administrator 1.2.0 has a cursor/focus limitation when its text fallback upgrades to Monaco after you have started typing, for example during a slow first Python grammar load. Your script draft is preserved, but the cursor resets and the editor loses focus. Click the editor and place the cursor to continue. This is host editor behavior; it does not change the saved or executed Python source.
+
 ![Python Reader IntelliSense suggesting Message without an import](assets/python-intellisense.png)
 
 In this **Python Reader**, typing `return Mess` offers the automatically supplied `Message` class without an import. Writers similarly receive `Response` and `Status`; response transformers receive `Status`. Completion suggestions help discover Python and SDK APIs in the selected environment; use the context reference to check which values and operations apply.

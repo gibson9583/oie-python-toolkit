@@ -1,0 +1,10 @@
+{
+  "4.6.0": {
+    "url": "https://github.com/OpenIntegrationEngine/engine/releases/download/v4.6.0/oie_unix_4_6_0.tar.gz",
+    "sha256": "7c82e79027e671277e1d78d0f7bbb1c53ddf1be476f1e80c2ddbfcf7855900ea"
+  },
+  "4.7.0": {
+    "url": "https://github.com/OpenIntegrationEngine/engine/releases/download/v4.7.0/oie_unix_4_7_0.tar.gz",
+    "sha256": "ab08558873dc6be1e474afaacc46efe94d29c945cd3381c10d0ae548ecb429de"
+  }
+}

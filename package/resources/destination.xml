@@ -1,9 +1,9 @@
 <connectorMetaData path="python-runtime">
     <name>Python Writer</name>
-    <author>OIE Contributors</author>
+    <author>Chris Gibson</author>
     <pluginVersion>${project.version}</pluginVersion>
     <mirthVersion>${mirth.compatible.versions}</mirthVersion>
-    <url>https://openintegrationengine.org</url>
+    <url>https://github.com/gibson9583/oie-python-toolkit</url>
     <description>Executes Python using the current deployed script environment.</description>
     <protocol>Python</protocol>
     <type>DESTINATION</type>

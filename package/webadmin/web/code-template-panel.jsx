@@ -4,7 +4,7 @@ import * as api from '@oie/web-api';
 import { PythonEditor } from './python-editor.jsx';
 import { OutputPanel } from './output-panel.jsx';
 import { createGeneration, request, DEFAULT_PROFILE_ID } from './ui-model.mjs';
-import { selectedEnvironment, environmentState } from './default-environment.mjs';
+import { selectedEnvironment, environmentState, unresolvedEnvironmentName } from './default-environment.mjs';
 import { createSessionFence, guardApi } from './ui-session.mjs';
 import { TEMPLATE_TYPE, TEMPLATE_CLASS, TEMPLATE_CONTEXTS, templateDefaults, templateContexts, functionNameMessage, templateCompletionCode, validateTemplateRuntime } from './code-template-model.mjs';
 
@@ -87,8 +87,8 @@ function TemplatePanel({ template, properties, onChange, readOnly }) {
                         change('environmentProfileId', event.target.value);
                     }}>
                         <option value="">{profiles ? 'Select a script environment' : 'Loading environments…'}</option>
-                        {properties.environmentProfileId && !selected && <option value={properties.environmentProfileId}>Unresolved: {properties.environmentNameHint || properties.environmentProfileId}</option>}
-                        {profiles?.profiles.filter(profile => !profile.archived && (profile.id !== DEFAULT_PROFILE_ID || profile === selectedEnvironment({ environmentProfileId: DEFAULT_PROFILE_ID }, profiles))).map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+                        {properties.environmentProfileId && !selected && <option value={properties.environmentProfileId}>Unresolved: {unresolvedEnvironmentName(properties)}</option>}
+                        {profiles?.profiles.filter(profile => !profile.archived && (profile.id !== DEFAULT_PROFILE_ID || profile === selectedEnvironment({ environmentProfileId: DEFAULT_PROFILE_ID }, profiles))).map(profile => <option key={profile.id} value={profile.id}>{profile.name}{profile.builtInDefault ? ' · Built-in' : ''}</option>)}
                     </select>
                 </label>
             </div>
@@ -100,12 +100,9 @@ function TemplatePanel({ template, properties, onChange, readOnly }) {
         {selected && <p className="text-text-dim">{selected.name} · {environmentState(selected)}{selected.readiness?.message ? `: ${selected.readiness.message}` : ''}</p>}
         {profiles && properties.environmentProfileId && !selected && <p role="alert">This script environment is unavailable. Select an available environment before deploying.</p>}
         <PythonEditor value={properties.pythonScript || ''} onChange={value => change('pythonScript', value)} readOnly={readOnly} role="code-template" profile={selected} catalog={profiles}/>
-        <details>
-            <summary>Advanced</summary>
-            <fieldset disabled={readOnly} className="min-w-0" style={{ border: 0, margin: 0, padding: 0 }}>
-                <label className="field mt-3">Invocation timeout (milliseconds)<input type="number" min="100" step="1" value={properties.timeoutMillis} onChange={event => change('timeoutMillis', Number(event.target.value))}/></label>
-            </fieldset>
-        </details>
+        <fieldset disabled={readOnly} className="min-w-0" style={{ border: 0, margin: 0, padding: 0 }}>
+            <label className="field">Invocation timeout (milliseconds)<input type="number" min="100" step="1" value={properties.timeoutMillis} onChange={event => change('timeoutMillis', Number(event.target.value))}/></label>
+        </fieldset>
         {!readOnly && <div><button type="button" className="btn" disabled={busy || !canValidate()} onClick={validate}>{busy ? 'Validating Python…' : 'Validate Python'}</button></div>}
         {result && <div role="status" aria-live="polite">
             <strong>{result.status === 'valid' ? 'Python function validated' : result.status === 'invalid' ? 'Python function needs attention' : 'Python validation unavailable'}</strong>

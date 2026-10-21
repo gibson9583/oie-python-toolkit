@@ -17,13 +17,13 @@ A Script Environment is a saved dependency profile: an approved interpreter ID, 
 
 An environment controls dependencies; it does not add another context's globals. A Writer using the same environment as a transformer still receives `payload`, not `msg`. Two profiles can contain the same package without sharing Python objects or state.
 
-## Built-in vanilla environment
+## Built-in Python environment
 
-**Vanilla Python (standard library)** has no third-party requirements. It installs only the bundled SDK into a private environment and prepares automatically without package downloads. It uses an approved CPython interpreter already installed on the node. With the default policy this resolves `python3` from the engine process's PATH, which may differ from your interactive shell.
+**Python** has no third-party requirements. It installs only the bundled SDK into a private environment and prepares automatically without package downloads. It uses an approved CPython interpreter already installed on the node. With the default policy this resolves `python3` from the engine process's PATH, which may differ from your interactive shell.
 
-The actual interpreter version is displayed in the UI. Runtime code requires CPython 3.9 or later with `venv` and `ensurepip`; use syntax and packages compatible with the selected interpreter. The toolkit does not bundle an operating-system interpreter. Current worker process supervision requires a supported POSIX environment; Windows execution is unavailable. See [testing and support](../validation.md) for qualified combinations rather than inferring qualification from a version minimum.
+The actual interpreter version is displayed in the UI. Runtime code requires CPython 3.11 or later with `venv` and `ensurepip`; use syntax and packages compatible with the selected interpreter. The toolkit does not bundle an operating-system interpreter. Current worker process supervision requires a supported POSIX environment; Windows execution is unavailable. See [testing and support](../validation.md) for qualified combinations rather than inferring qualification from a version minimum.
 
-The vanilla definition is protected. Create a separate profile for additional packages or another interpreter selection. New scripts default to vanilla. A missing/null legacy profile reference also selects the built-in default; a nonempty unknown UUID does not silently fall back to it.
+The built-in Python definition is protected. Create a separate profile for additional packages or another interpreter selection. New scripts default to Python. A missing/null legacy profile reference also selects the built-in default; a nonempty unknown UUID does not silently fall back to it.
 
 ## Script Environments screen
 
@@ -100,7 +100,7 @@ Do not leave background threads, subprocesses, or callbacks doing message work a
 
 Channel XML stores environment UUID references; it does not embed interpreters, installed dependencies, or complete profiles. Export/import profiles through the plugin and map conflicts explicitly on the target. Export includes matching saved locks when present; it does not offer a separate include-lock toggle. A similarly named profile does not satisfy a different UUID automatically.
 
-Registry definitions and locks are persisted. Readiness, workers, preparation jobs, paths, and credentials are node-local. Prepare custom profiles on every node that can execute the channel. Vanilla prepares automatically on each starting node; repeated automatic failures are bounded, and explicit cancellation keeps that generation stopped until retry or a new generation.
+Registry definitions and locks are persisted. Readiness, workers, preparation jobs, paths, and credentials are node-local. Prepare custom profiles on every node that can execute the channel. Python prepares automatically on each starting node; repeated automatic failures are bounded, and explicit cancellation keeps that generation stopped until retry or a new generation.
 
 Use node-affine connections for preparation, jobs, logs, validation, and sample tests. Otherwise a load balancer can send a follow-up request to a node that does not own the job or artifact. Treat the UI's node identity and readiness as part of the operation.
 

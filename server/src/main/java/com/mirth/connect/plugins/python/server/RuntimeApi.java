@@ -152,7 +152,7 @@ public final class RuntimeApi {
                     Profile p = RegistryStore.requireProfile(registry, id);
                     RegistryStore.checkRevision(p, request.expectedRevision);
                     if (p.archived) {
-                        throw ApiFailure.conflict("PROFILE_ARCHIVED", "Environment \"" + p.name + "\" is archived");
+                        throw ApiFailure.conflict("PROFILE_ARCHIVED", "Environment \"" + BuiltInEnvironment.displayName(p) + "\" is archived");
                     }
                     checkUniqueName(registry, request.name, id);
                     apply(p, request, actor);
@@ -174,13 +174,13 @@ public final class RuntimeApi {
                     int saved = savedReferenceCounts().getOrDefault(id, 0);
                     int deployed = deployedReferenceCount(id);
                     if (saved > 0 || deployed > 0) {
-                        ApiFailure failure = ApiFailure.conflict("PROFILE_IN_USE", "Environment \"" + p.name + "\" is used by " + saved
+                        ApiFailure failure = ApiFailure.conflict("PROFILE_IN_USE", "Environment \"" + BuiltInEnvironment.displayName(p) + "\" is used by " + saved
                                 + " saved script(s) and " + deployed + " deployed channel(s). Remove those references first.");
                         failure.currentRevision = p.revision;
                         throw failure;
                     }
                     if (runtime.preparation.hasActiveJob(id, registry.registryEpoch, p.revision)) {
-                        throw ApiFailure.conflict("PREPARATION_ACTIVE", "Environment \"" + p.name + "\" is being prepared. Cancel it first.");
+                        throw ApiFailure.conflict("PREPARATION_ACTIVE", "Environment \"" + BuiltInEnvironment.displayName(p) + "\" is being prepared. Cancel it first.");
                     }
                     p.archived = true;
                     p.revision++;
@@ -198,7 +198,7 @@ public final class RuntimeApi {
                     Profile p = RegistryStore.requireProfile(registry, id);
                     RegistryStore.checkRevision(p, request.expectedRevision);
                     if (p.archived) {
-                        throw ApiFailure.conflict("PROFILE_ARCHIVED", "Environment \"" + p.name + "\" is archived");
+                        throw ApiFailure.conflict("PROFILE_ARCHIVED", "Environment \"" + BuiltInEnvironment.displayName(p) + "\" is archived");
                     }
                     p.refreshGeneration++;
                     p.definitionFingerprint = PreparationManager.definitionFingerprint(p);
@@ -281,7 +281,7 @@ public final class RuntimeApi {
     private static void checkUniqueName(Registry registry, String name, String exceptId) {
         for (Profile p : registry.profiles.values()) {
             if (!p.archived && !p.id.equals(exceptId) && p.name.trim().equalsIgnoreCase(name.trim())) {
-                throw ApiFailure.conflict("NAME_IN_USE", "Another environment is already named \"" + p.name + "\"");
+                throw ApiFailure.conflict("NAME_IN_USE", "Another environment is already named \"" + BuiltInEnvironment.displayName(p) + "\"");
             }
         }
     }
@@ -710,7 +710,7 @@ public final class RuntimeApi {
             PythonApi.LocalReadiness readiness = runtime.readiness(profile, registry.registryEpoch);
             environment = readiness.state;
             if (!"ready".equals(environment)) {
-                result.diagnostics.add(Diagnostic.of("ENVIRONMENT_NOT_READY", "Environment \"" + profile.name + "\" is " + environment + " on node "
+                result.diagnostics.add(Diagnostic.of("ENVIRONMENT_NOT_READY", "Environment \"" + BuiltInEnvironment.displayName(profile) + "\" is " + environment + " on node "
                         + runtime.config.nodeId, "environmentProfileId", BuiltInEnvironment.preparationHint(profile)));
             }
         }
@@ -763,7 +763,7 @@ public final class RuntimeApi {
         result.targetFingerprint = readiness.targetFingerprint;
         if (!"ready".equals(readiness.state)) {
             result.status = "unavailable";
-            result.diagnostics.add(Diagnostic.of("ENVIRONMENT_NOT_READY", "Environment \"" + profile.name + "\" is " + readiness.state + " on node "
+            result.diagnostics.add(Diagnostic.of("ENVIRONMENT_NOT_READY", "Environment \"" + BuiltInEnvironment.displayName(profile) + "\" is " + readiness.state + " on node "
                     + runtime.config.nodeId, "environmentProfileId", BuiltInEnvironment.preparationHint(profile)));
             return result;
         }

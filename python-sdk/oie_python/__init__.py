@@ -22,7 +22,7 @@ from ._result_types import (
     UnsupportedValueError,
 )
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 PROTOCOL_VERSION = 1
 CONTRACT_VERSION = 1
 

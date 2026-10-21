@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from release_contract import default_plugin
 import re
 import secrets
 import shutil
@@ -100,7 +101,7 @@ def make_template(template_id, source):
     return {'codeTemplate': {'@version': '4.6.0', 'id': template_id, 'name': 'Python callable qualification', 'revision': 0,
         'contextSet': {'delegate': {'contextType': CONTEXTS}}, 'properties': {'@class': PROPERTIES, '@version': '4.6.0',
         'type': 'FUNCTION', 'functionName': 'python_function', 'pythonScript': source,
-        'environmentProfileId': '232030e4-aa0d-39fc-a889-fed1318ef412', 'environmentNameHint': 'Vanilla Python (standard library)',
+        'environmentProfileId': '232030e4-aa0d-39fc-a889-fed1318ef412', 'environmentNameHint': 'Python',
         'timeoutMillis': 30000, 'contractVersion': 1}}}
 
 
@@ -180,10 +181,12 @@ def run(args, scenario=None):
     pin_plugin(package_pin, package_bytes)
     write(evidence / 'inputs.json', {'engine': {'path': str(args.engine), 'sha256': sha(args.engine), 'sharedImmutableInput': True},
         'plugin': {'source': str(args.plugin), 'pinnedPath': str(package_pin), 'sha256': digest},
-        'javaHome': str(args.java_home), 'python': str(args.python)})
+        'javaHome': str(args.java_home), 'python': str(args.python),
+        'signerSha256': getattr(args, 'signer_sha256', None)})
     shutil.copyfile(__file__, evidence / 'runner.py')
     shutil.copyfile(ROOT / 'tools/live_engine_helpers.py', evidence / 'live_engine_helpers.py')
     shutil.copyfile(ROOT / 'tools/inspect_plugin.py', evidence / 'inspect_plugin.py')
+    shutil.copyfile(ROOT / 'tools/release_contract.py', evidence / 'release_contract.py')
     write(evidence / 'source-sha256.json', {str(path.relative_to(ROOT)): sha(path) for folder in ['shared/src', 'server/src', 'package/webadmin/web', 'python-sdk']
         for path in (ROOT / folder).rglob('*') if path.is_file() and path.suffix in ['.java', '.py', '.jsx', '.mjs', '.json', '.xml']})
     try:
@@ -193,7 +196,7 @@ def run(args, scenario=None):
             archive.extractall(runtime, filter='data')
         assert not (runtime / 'appdata').exists(), 'Expected a fresh database directory'
         assert not (home / 'extensions/python-runtime').exists(), 'Stock archive unexpectedly contains Python plugin'
-        write(evidence / 'package-inspection.json', inspect_plugin(package_pin))
+        write(evidence / 'package-inspection.json', inspect_plugin(package_pin, getattr(args, 'signer_sha256', None)))
         with zipfile.ZipFile(package_pin) as archive:
             inventory = {}
             for item in archive.infolist():
@@ -433,7 +436,7 @@ def run(args, scenario=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--engine', type=Path, required=True)
-    parser.add_argument('--plugin', type=Path, default=ROOT / 'package/target/python-runtime-0.1.0.zip')
+    parser.add_argument('--plugin', type=Path, default=default_plugin())
     parser.add_argument('--java-home', type=Path, required=True)
     parser.add_argument('--python', type=Path, default=Path('/opt/homebrew/bin/python3'))
     parser.add_argument('--evidence', type=Path, required=True)

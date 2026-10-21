@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Inspect the unsigned, self-contained plugin ZIP without installing it."""
+"""Inspect a self-contained plugin ZIP; verify release signatures when requested."""
 import argparse
 import hashlib
 import io
+import importlib.util
 import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
 import zipfile
+import tempfile
+
+from release_contract import default_plugin, verify_versions
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULES = {"shared", "server", "client"}
@@ -20,19 +24,36 @@ HOST_ONLY_TYPES = (b"com/mirth/connect/plugins/ChannelDeploymentPlugin", b"com/m
                    b"getProtectedPluginProperties", b"compareAndSetPluginProperties")
 
 
-def inspect(path):
+def verify_signed_jar(raw, name, certificate_sha256):
+    spec = importlib.util.spec_from_file_location("toolkit_signing", ROOT / ".github/signing/sign_release.py")
+    signing = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(signing)
+    expected = signing.fingerprint(certificate_sha256)
+    with tempfile.TemporaryDirectory(prefix="python-toolkit-verify-") as temporary:
+        jar = Path(temporary) / Path(name).name
+        jar.write_bytes(raw)
+        signing.verify_jar(jar, expected)
+
+
+def inspect(path, certificate_sha256=None):
+    version = verify_versions()
     result = {"plugin": str(path.resolve()), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-              "signed": False, "hostChangesRequired": False, "libraries": []}
+              "signed": bool(certificate_sha256), "hostChangesRequired": False, "libraries": []}
+    result["certificateSha256"] = certificate_sha256.replace(":", "").strip().lower() if certificate_sha256 else None
     with zipfile.ZipFile(path) as package:
         names = package.namelist()
         assert len(names) == len(set(names)), "Duplicate archive entries"
         assert all(name.startswith("python-runtime/") and ".." not in Path(name).parts for name in names), "Foreign archive path"
         metadata = ET.fromstring(package.read("python-runtime/plugin.xml"))
         assert metadata.get("path") == "python-runtime" and metadata.findtext("mirthVersion") == "4.6.0, 4.7.0"
+        assert metadata.findtext("pluginVersion") == version, "Plugin version differs from source"
         for name in ("source.xml", "destination.xml"):
-            assert ET.fromstring(package.read("python-runtime/" + name)).findtext("mirthVersion") == "4.6.0, 4.7.0"
+            connector = ET.fromstring(package.read("python-runtime/" + name))
+            assert connector.findtext("mirthVersion") == "4.6.0, 4.7.0"
+            assert connector.findtext("pluginVersion") == version, "Connector version differs from source"
         web = json.loads(package.read("python-runtime/webadmin/plugin.json"))
         assert web["oie"]["apiMin"] == "4.10"
+        assert web["version"] == version, "Browser plugin version differs from source"
         assert b"contextInputs" not in package.read("python-runtime/webadmin/web/plugin.js"), "Removed selector contract remains in browser bundle"
         language_path = "python-runtime/webadmin/web/python-language.json"
         language = json.loads(package.read(language_path))
@@ -55,7 +76,11 @@ def inspect(path):
                 signatures = [entry for entry in entries if entry.upper().startswith("META-INF/")
                               and (entry.upper().endswith((".SF", ".RSA", ".DSA", ".EC"))
                                    or Path(entry).name.upper().startswith("SIG-"))]
-                assert not signatures, f"Signed plugin library: {name}"
+                if certificate_sha256:
+                    assert signatures, f"Unsigned release library: {name}"
+                    verify_signed_jar(raw, name, certificate_sha256)
+                else:
+                    assert not signatures, f"Signed plugin library requires --certificate-sha256: {name}"
                 classes = [entry for entry in entries if entry.endswith(".class")]
                 assert not any("ContextInput" in entry or "EngineInputKeys" in entry for entry in classes), "Removed catalog classes remain in package"
                 assert all(entry.startswith(OWN_PACKAGES) for entry in classes), f"Bundled host/third-party classes: {name}"
@@ -75,10 +100,11 @@ def inspect(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--plugin", type=Path, default=ROOT / "package/target/python-runtime-0.1.0.zip")
+    parser.add_argument("--plugin", type=Path, default=default_plugin())
+    parser.add_argument("--certificate-sha256", help="Require every JAR to be signed by this certificate, with trusted timestamps")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
-    result = inspect(args.plugin)
+    result = inspect(args.plugin, args.certificate_sha256)
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(result, indent=2) + "\n")

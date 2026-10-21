@@ -4,7 +4,7 @@
 
 ## Before writing a channel
 
-Install the Python Runtime extension using the engine's extension manager and restart when prompted. Open the Web Administrator. **Settings → Script Environments** should show **Vanilla Python (standard library)** reaching **Ready** on the node that will execute your channel. The built-in environment contains the SDK and standard library; it prepares offline using the approved installed interpreter.
+Install the Python Runtime extension using the engine's extension manager and restart when prompted. Open the Web Administrator. **Settings → Script Environments** should show **Python** reaching **Ready** on the node that will execute your channel. The built-in environment contains the SDK and standard library; it prepares offline using the approved installed interpreter.
 
 New Python rules, steps, Readers, and Writers select that environment. For third-party libraries, create a separate [Script Environment](Environments-and-deployment.md). An environment shown as ready on one node is not necessarily ready on another.
 

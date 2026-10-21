@@ -18,3 +18,8 @@ export function selectedEnvironment(subject,list){
 export function environmentState(profile){
     return (profile?.readiness?.pythonVersion?`CPython ${profile.readiness.pythonVersion} · `:'')+(profile?.readiness?.state?.replaceAll('-',' ')||'not prepared');
 }
+
+// Historical connector hints are user data; update only the reserved built-in label.
+export function unresolvedEnvironmentName(subject){
+    return subject.environmentProfileId===DEFAULT_PROFILE_ID?DEFAULT_PROFILE_NAME:subject.environmentNameHint||subject.environmentProfileId;
+}

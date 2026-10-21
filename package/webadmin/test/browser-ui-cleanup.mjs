@@ -164,14 +164,7 @@ try {
 
     for (const kind of ['step', 'reader', 'writer']) {
         await mount(kind);
-        if (kind === 'reader') {
-            const help = await page.locator('p').filter({ hasText: 'invocation metadata' }).innerText();
-            assert.match(help, /writable sourceMap/);
-            assert.ok(help.includes("sourceMap.get('pollId')"));
-            assert.match(help, /Message.source_map entries override them per message/);
-            assert.doesNotMatch(help, /Use poll\b/);
-            checks.push('Reader help describes writable sourceMap defaults and per-message overrides');
-        }
+        assert.equal(await page.getByLabel('Invocation timeout (milliseconds)', { exact: true }).isVisible(), true);
         const starter = kind === 'step' ? '' : 'return None\n';
         assert.equal(await page.evaluate(() => window.lastEditor.getValue()), starter);
         assert.equal(await page.evaluate(() => window.subject.pythonScript), starter);

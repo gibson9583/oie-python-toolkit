@@ -3,7 +3,7 @@
 """Validate the toolkit on an existing engine using only owned profiles/channels.
 
 Never starts, signals, installs into, or deletes the engine or its database.
-Run after standard unsigned plugin installation; no engine overlay is used.
+Run after standard plugin installation; no engine overlay is used.
 """
 import argparse, copy, hashlib, http.cookiejar, json, os, socket, ssl, subprocess, time, urllib.parse, urllib.request, uuid, xml.etree.ElementTree as ET
 from pathlib import Path

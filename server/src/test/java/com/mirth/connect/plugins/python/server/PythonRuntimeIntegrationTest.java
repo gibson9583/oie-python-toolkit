@@ -226,14 +226,14 @@ class PythonRuntimeIntegrationTest {
                 assertEquals(rawId, request.environmentProfileId); assertEquals(rawId, legacy.getEnvironmentProfileId());
                 Files.writeString(fixture.evidence.resolve("default-version-" + (rawId == null ? "null" : "empty") + ".json"), PythonApi.mapper().writeValueAsString(tested));
             }
-            var deployment = deployment(UUID.randomUUID().toString(), "", "vanilla");
+            var deployment = deployment(UUID.randomUUID().toString(), "", "python-default");
             String modelBefore = new com.thoughtworks.xstream.XStream().toXML(deployment.model());
             var binding = fixture.runtime.deployments.prepare(deployment.model());
             assertTrue(binding.specs.values().stream().allMatch(spec -> PythonContract.DEFAULT_PROFILE_ID.equals(spec.profileId)));
             assertEquals(modelBefore, new com.thoughtworks.xstream.XStream().toXML(deployment.model()), "Effective fallback must not rewrite saved channel XML");
             when(fixture.runtime.engine.deployedChannel(deployment.model().getId())).thenReturn(deployment.channel());
             fixture.runtime.deployments.activate(deployment.channel());
-            assertEquals("vanilla", reader(deployment).executeRead().get(0).getRawData());
+            assertEquals("python-default", reader(deployment).executeRead().get(0).getRawData());
             fixture.recordWorkers();
             Files.writeString(fixture.evidence.resolve("default-profile-list.json"), PythonApi.mapper().writeValueAsString(fixture.api.list(false)));
         }

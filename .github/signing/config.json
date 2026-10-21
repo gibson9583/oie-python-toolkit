@@ -1,0 +1,8 @@
+{
+  "bundle": "package/target/python-runtime-*.zip",
+  "jars": [
+    "python-runtime/libs/oie-python-toolkit-shared-*.jar",
+    "python-runtime/libs/oie-python-toolkit-server-*.jar",
+    "python-runtime/libs/oie-python-toolkit-client-*.jar"
+  ]
+}

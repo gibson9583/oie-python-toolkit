@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "oie-channel-helpers-example"
 version = "0.1.0"
 description = "Example shared Python class for OIE channel scripts"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 
 [tool.setuptools.packages.find]
 where = ["src"]

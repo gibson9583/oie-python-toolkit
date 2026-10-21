@@ -5,7 +5,7 @@ export const BASE = '/extensions/python-runtime';
 export const RULE = 'com.mirth.connect.plugins.python.PythonRule';
 export const STEP = 'com.mirth.connect.plugins.python.PythonStep';
 export const DEFAULT_PROFILE_ID = '232030e4-aa0d-39fc-a889-fed1318ef412';
-export const DEFAULT_PROFILE_NAME = 'Vanilla Python (standard library)';
+export const DEFAULT_PROFILE_NAME = 'Python';
 export const terminalJobs = new Set(['READY', 'FAILED', 'CANCELLED', 'SUPERSEDED', 'INTERRUPTED']);
 export const newRequestId = () => crypto.randomUUID();
 export function decode(value) {

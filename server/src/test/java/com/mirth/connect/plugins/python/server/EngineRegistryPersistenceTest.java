@@ -6,10 +6,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -32,7 +35,10 @@ class EngineRegistryPersistenceTest {
         final String url = "jdbc:derby:" + root.resolve("database") + ";create=true";
         final EngineRegistryPersistence persistence = new EngineRegistryPersistence(this::connection, "derby", () -> null);
         Database() throws Exception {
-            evidence.toFile().mkdirs();
+            Files.createDirectories(evidence);
+            Files.writeString(evidence.resolve("ownership.json"), PythonApi.mapper().writeValueAsString(Map.of(
+                    "databaseRoot", root.toString(), "testJvmPid", ProcessHandle.current().pid(),
+                    "databaseShutdownConfirmed", false, "sharedEngineTouched", false, "cleanupPending", true)));
             Class.forName("org.apache.derby.jdbc.EmbeddedDriver");
             try (Connection connection = connection(); var statement = connection.createStatement()) {
                 statement.execute("CREATE TABLE CONFIGURATION (CATEGORY VARCHAR(100) NOT NULL, NAME VARCHAR(100) NOT NULL, VALUE CLOB, PRIMARY KEY (CATEGORY, NAME))");
@@ -51,15 +57,32 @@ class EngineRegistryPersistenceTest {
             try (Connection connection = connection(); var statement = connection.createStatement(); var result=statement.executeQuery("SELECT CATEGORY,NAME,VALUE FROM CONFIGURATION ORDER BY CATEGORY,NAME")) {
                 while(result.next()) { var row=new LinkedHashMap<String,Object>(); row.put("category",result.getString(1));row.put("name",result.getString(2));row.put("value",result.getString(3));rows.add(row); }
             }
-            assertTrue(rows.stream().anyMatch(row -> "Unrelated Extension".equals(row.get("category")) && "preserve".equals(row.get("value"))));
             Files.writeString(evidence.resolve("final-rows.json"), PythonApi.mapper().writeValueAsString(rows));
             boolean closed=false;
             try { DriverManager.getConnection(url.replace(";create=true", ";shutdown=true")); }
             catch(SQLException shutdown) { closed="08006".equals(shutdown.getSQLState()); }
             assertTrue(closed,"Private Derby database did not confirm shutdown");
+            // Derby is embedded: this fixture starts no engine or database process.
+            // The confirmed database shutdown releases its files, including on a failed test.
+            var hashes = new LinkedHashMap<String,String>();
+            try (var paths = Files.walk(root)) {
+                for (Path path : paths.filter(Files::isRegularFile).sorted().toList()) {
+                    hashes.put(root.relativize(path).toString(), HexFormat.of().formatHex(
+                            MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path))));
+                }
+            }
+            Files.writeString(evidence.resolve("database-sha256.json"), PythonApi.mapper().writeValueAsString(hashes));
             Files.writeString(evidence.resolve("ownership.json"),PythonApi.mapper().writeValueAsString(Map.of(
                 "databaseRoot",root.toString(),"testJvmPid",ProcessHandle.current().pid(),"databaseShutdownConfirmed",true,
-                "sharedEngineTouched",false,"cleanupPendingJvmExit",true)));
+                "sharedEngineTouched",false,"cleanupPending",true)));
+            try (var paths = Files.walk(root)) {
+                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path);
+            }
+            Files.writeString(evidence.resolve("ownership.json"),PythonApi.mapper().writeValueAsString(Map.of(
+                "databaseRoot",root.toString(),"testJvmPid",ProcessHandle.current().pid(),"databaseShutdownConfirmed",true,
+                "sharedEngineTouched",false,"databaseRemoved",true)));
+            assertFalse(Files.exists(root));
+            assertTrue(rows.stream().anyMatch(row -> "Unrelated Extension".equals(row.get("category")) && "preserve".equals(row.get("value"))));
         }
     }
 
@@ -156,6 +179,20 @@ class EngineRegistryPersistenceTest {
         var persistence=new EngineRegistryPersistence(()->{accesses.incrementAndGet();throw new SQLException("must not run");},"derby",()->null);
         assertThrows(java.io.IOException.class,()->persistence.write(null,"{}","invalid"));
         assertEquals(0,accesses.get());
+    }
+
+    @Test void failedTestBodyStillPreservesEvidenceAndRemovesItsDatabase() throws Exception {
+        Database db = new Database();
+        assertThrows(java.io.IOException.class, () -> {
+            try (db) {
+                db.persistence.write(null, document(), "before-failure");
+                throw new java.io.IOException("simulated test failure");
+            }
+        });
+        assertFalse(Files.exists(db.root));
+        assertTrue(Files.readString(db.evidence.resolve("final-rows.json")).contains("Unrelated Extension"));
+        assertFalse(PythonApi.mapper().readTree(Files.readString(db.evidence.resolve("database-sha256.json"))).isEmpty());
+        assertTrue(PythonApi.mapper().readTree(Files.readString(db.evidence.resolve("ownership.json"))).get("databaseRemoved").asBoolean());
     }
 
     @Test void legacyWholeRegistryReplacementGetsFreshEpochOnlyAfterCheckedCommit() throws Exception {

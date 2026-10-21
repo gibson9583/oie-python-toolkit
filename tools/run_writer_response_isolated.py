@@ -7,6 +7,7 @@ cleanup. This callback only creates channels in that owned engine.
 """
 import argparse
 from pathlib import Path
+from release_contract import default_plugin
 import shutil
 import time
 import uuid
@@ -178,7 +179,7 @@ def scenario(api, child, profile, ingress, evidence, receipt):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--engine', type=Path, required=True)
-    parser.add_argument('--plugin', type=Path, default=ROOT / 'package/target/python-runtime-0.1.0.zip')
+    parser.add_argument('--plugin', type=Path, default=default_plugin())
     parser.add_argument('--java-home', type=Path, required=True)
     parser.add_argument('--python', type=Path, default=Path('/opt/homebrew/bin/python3'))
     parser.add_argument('--evidence', type=Path, required=True)

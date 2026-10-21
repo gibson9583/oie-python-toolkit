@@ -161,7 +161,7 @@ return bool(patient.name)
 
 All three snippets assume string `patient_id` and `name` fields; missing or incorrectly typed fields raise an error, rather than being treated as a false predicate. You can use the same import in Reader and Writer code, but those contexts construct their own input data from a polled source or serialized `payload`.
 
-Do not put `pip install` in a channel script. Do not modify an active prepared environment or rely on an engine working-directory import. Use a versioned wheel, update the environment requirement, prepare, and redeploy consuming channels. The built-in vanilla environment is protected; create a custom environment for the example package.
+Do not put `pip install` in a channel script. Do not modify an active prepared environment or rely on an engine working-directory import. Use a versioned wheel, update the environment requirement, prepare, and redeploy consuming channels. The built-in Python environment is protected; create a custom environment for the example package.
 
 ## Lifetime, caching, and deployment
 

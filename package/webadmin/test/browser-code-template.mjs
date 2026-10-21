@@ -59,6 +59,7 @@ try {
     await page.waitForFunction(() => window.ready);
     assert.equal(requests.some(url => url.includes('/plugins/python-runtime/web/python-language.json')), false, 'Settings must not load Python');
     await show();
+    assert.equal(await page.getByLabel('Invocation timeout (milliseconds)', { exact: true }).isVisible(), true);
     assert.equal(await page.getByLabel('Function name', { exact: true }).inputValue(), 'Normalize_patient');
     await page.getByLabel('Function name', { exact: true }).fill('normalize_patient');
     await page.getByLabel('Script environment', { exact: true }).selectOption('profile');
@@ -110,6 +111,7 @@ try {
     failProfiles = false;
     await show({ readOnly: true });
     assert.equal(await page.getByLabel('Function name', { exact: true }).isDisabled(), true);
+    assert.equal(await page.getByLabel('Invocation timeout (milliseconds)', { exact: true }).isDisabled(), true);
     assert.equal(await page.getByRole('button', { name: 'Validate Python', exact: true }).count(), 0);
     assert.equal(await page.evaluate(() => window.lastEditor.opts.readOnly), true);
     assert.equal(requests.some(url => url.includes('/vendor/monaco/python.js')), false);

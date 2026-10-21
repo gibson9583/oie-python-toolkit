@@ -1,9 +1,9 @@
 <pluginMetaData path="python-runtime">
     <name>Python Runtime</name>
-    <author>OIE Contributors</author>
+    <author>Chris Gibson</author>
     <pluginVersion>${project.version}</pluginVersion>
     <mirthVersion>${mirth.compatible.versions}</mirthVersion>
-    <url>https://openintegrationengine.org</url>
+    <url>https://github.com/gibson9583/oie-python-toolkit</url>
     <description>Managed Python environments, filter rules, transformer steps, polling Reader and Writer using the standard OIE plugin APIs.</description>
     <serverClasses><string>com.mirth.connect.plugins.python.server.PythonServicePlugin</string></serverClasses>
     <apiProvider type="SERVLET_INTERFACE" name="com.mirth.connect.plugins.python.PythonRuntimeServletInterface"/>

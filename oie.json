@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "python-runtime",
+  "name": "Python Toolkit",
+  "description": "Python filters, transformer steps, reusable functions, Reader and Writer connectors, and managed script environments for Open Integration Engine.",
+  "type": "plugin",
+  "homepage": "https://github.com/gibson9583/oie-python-toolkit",
+  "documentation": "https://github.com/gibson9583/oie-python-toolkit/wiki",
+  "license": "MPL-2.0",
+  "authors": ["Chris Gibson"],
+  "keywords": ["python", "filters", "transformers", "connectors", "environments"],
+  "deprecated": false,
+  "version": "1.0.0",
+  "minEngineVersion": "4.6.0",
+  "maxEngineVersion": "4.7.0",
+  "filename": "python-runtime-{version}.zip",
+  "ui": ["web"],
+  "restartRequired": true,
+  "storeDocs": "docs/store.md"
+}

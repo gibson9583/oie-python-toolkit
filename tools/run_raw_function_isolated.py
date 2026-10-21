@@ -3,6 +3,7 @@
 """Validate primitive and stock boxed RAW arguments through all transformer phases."""
 import argparse
 from pathlib import Path
+from release_contract import default_plugin
 import copy
 import json
 import uuid
@@ -62,7 +63,7 @@ def run(api, child, profile, ingress, evidence, receipt):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--engine', type=Path, required=True)
-    parser.add_argument('--plugin', type=Path, default=ROOT / 'package/target/python-runtime-0.1.0.zip')
+    parser.add_argument('--plugin', type=Path, default=default_plugin())
     parser.add_argument('--java-home', type=Path, required=True)
     parser.add_argument('--python', type=Path, default=Path('/opt/homebrew/bin/python3'))
     parser.add_argument('--evidence', type=Path, required=True)
