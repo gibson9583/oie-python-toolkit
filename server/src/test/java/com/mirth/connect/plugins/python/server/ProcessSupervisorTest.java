@@ -41,6 +41,17 @@ class ProcessSupervisorTest {
             if (handle != null && handle.isAlive()) handle.destroyForcibly();
         }
     }
+    @Test void completedCommandDoesNotPoisonTheNextProcessWithAnUncertainGroup() throws Exception {
+        assumeFalse(ProcessControl.isWindows());
+        Path python = Interpreters.resolve("python3");
+        for (int attempt = 0; attempt < 2; attempt++) {
+            var result = ProcessControl.runPython(List.of(python.toString(), "-I", "-c", "print('complete')"),
+                    ProcessControl.baseEnvironment(owned), owned, null, 10000, null, null, 50, 4000);
+            assertEquals(0, result.exitCode);
+            assertEquals(List.of("complete"), result.output);
+            assertFalse(ProcessControl.hasUncertainOwnership(), "Exited group must not block a subsequent command");
+        }
+    }
     @Test void supervisorRetainsTheMainCommandsNonzeroExitStatus() throws Exception {
         assumeFalse(ProcessControl.isWindows());
         Path python = Interpreters.resolve("python3");

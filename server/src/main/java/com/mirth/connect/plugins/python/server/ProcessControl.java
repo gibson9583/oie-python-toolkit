@@ -255,7 +255,7 @@ public final class ProcessControl {
         process.descendants().forEach(descendants::add);
         if (!WINDOWS) {
             try {
-                Process kill = new ProcessBuilder("kill", "-KILL", "-" + pid).redirectErrorStream(true)
+                Process kill = new ProcessBuilder("kill", "-KILL", "--", "-" + pid).redirectErrorStream(true)
                         .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
                 kill.waitFor(2, TimeUnit.SECONDS);
             } catch (IOException | InterruptedException e) {
@@ -314,7 +314,7 @@ public final class ProcessControl {
     private static boolean groupExists(long pid) {
         Process check = null;
         try {
-            check = new ProcessBuilder("kill", "-0", "-" + pid).redirectErrorStream(true)
+            check = new ProcessBuilder("kill", "-0", "--", "-" + pid).redirectErrorStream(true)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
             if (!check.waitFor(2, TimeUnit.SECONDS)) return true;
             return check.exitValue() == 0;
