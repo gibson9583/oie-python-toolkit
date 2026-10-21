@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MPL-2.0 */
 import { stepWrapper, filterWrapper } from './step-wrapper.mjs';
 import { placementError } from './step-placement.mjs';
-export const BASE = '/extensions/python-runtime';
+export const BASE = '/extensions/oie-python-toolkit';
 export const RULE = 'com.mirth.connect.plugins.python.PythonRule';
 export const STEP = 'com.mirth.connect.plugins.python.PythonStep';
 export const DEFAULT_PROFILE_ID = '232030e4-aa0d-39fc-a889-fed1318ef412';

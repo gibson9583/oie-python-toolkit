@@ -69,7 +69,7 @@ final class PythonDeploymentObserver extends EventListener implements AutoClosea
                 logger.error("Python activation or previous-deployment cleanup failed for channel " + channelId
                         + "; inspect the channel and runtime logs", failure);
                 events.dispatchEvent(new ErrorEvent(channelId, null, null, ErrorEventType.DEPLOY_SCRIPT,
-                        null, null, "Python Runtime activation or previous-deployment cleanup failed; inspect the channel and runtime logs", failure));
+                        null, null, "Python Toolkit activation or previous-deployment cleanup failed; inspect the channel and runtime logs", failure));
             } catch (Throwable reporting) {
                 if (reporting != failure) failure.addSuppressed(reporting);
                 try { logger.warn("Python activation error reporting failed", reporting); }

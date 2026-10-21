@@ -30,7 +30,7 @@ from inspect_plugin import inspect as inspect_plugin
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTEXTS = ['SOURCE_FILTER_TRANSFORMER', 'DESTINATION_FILTER_TRANSFORMER', 'DESTINATION_RESPONSE_TRANSFORMER']
-PYTHON = '/extensions/python-runtime'
+PYTHON = '/extensions/oie-python-toolkit'
 PROPERTIES = 'com.mirth.connect.plugins.python.PythonCodeTemplateProperties'
 
 
@@ -195,7 +195,7 @@ def run(args, scenario=None):
         with tarfile.open(args.engine) as archive:
             archive.extractall(runtime, filter='data')
         assert not (runtime / 'appdata').exists(), 'Expected a fresh database directory'
-        assert not (home / 'extensions/python-runtime').exists(), 'Stock archive unexpectedly contains Python plugin'
+        assert not (home / 'extensions/oie-python-toolkit').exists(), 'Stock archive unexpectedly contains Python plugin'
         write(evidence / 'package-inspection.json', inspect_plugin(package_pin, getattr(args, 'signer_sha256', None)))
         with zipfile.ZipFile(package_pin) as archive:
             inventory = {}
@@ -213,7 +213,7 @@ def run(args, scenario=None):
         configure(home, runtime, http, https, password)
         env = {key: value for key, value in os.environ.items() if key in ['PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'TMPDIR']}
         env.update({'OIE_JAVA_PATH': str(args.java_home / 'bin/java'), 'INSTALL4J_JAVA_HOME_OVERRIDE': str(args.java_home),
-            'OIE_PYTHON_RUNTIME_RUNTIMES': 'python3=' + str(args.python)})
+            'OIE_PYTHON_TOOLKIT_RUNTIMES': 'python3=' + str(args.python)})
         launcher = home / 'oieserver'
         launcher.chmod(0o700)
         with (evidence / 'engine-console.log').open('w') as output:
@@ -417,8 +417,8 @@ def run(args, scenario=None):
                 shutil.copytree(home / 'logs', evidence / 'engine-logs')
             if (runtime / 'appdata/mirthdb/service.properties').exists():
                 observe_database(args, home, runtime, evidence)
-            for path in (runtime / 'appdata/python-runtime').rglob('*.log'):
-                target = evidence / 'runtime-logs' / path.relative_to(runtime / 'appdata/python-runtime')
+            for path in (runtime / 'appdata/oie-python-toolkit').rglob('*.log'):
+                target = evidence / 'runtime-logs' / path.relative_to(runtime / 'appdata/oie-python-toolkit')
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(path, target)
             shutil.rmtree(runtime)

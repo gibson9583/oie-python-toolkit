@@ -27,14 +27,14 @@ def rule(source, profile, name='Python rule', operator='NONE', enabled=True, pyt
 def scenario(api, child, profile, ingress, evidence, receipt):
     shutil.copyfile(__file__, evidence / 'filter-scenario.py')
     results = []
-    runtime = api.call('/extensions/python-runtime/runtime')
-    selected = api.call('/extensions/python-runtime/profiles/' + profile['id'])
+    runtime = api.call('/extensions/oie-python-toolkit/runtime')
+    selected = api.call('/extensions/oie-python-toolkit/profiles/' + profile['id'])
     sample = {'requestId': str(uuid.uuid4()), 'environmentProfileId': profile['id'],
         'expectedRegistryEpoch': selected['registryEpoch'], 'expectedEnvironmentRevision': selected['revision'],
         'expectedNodeId': runtime['nodeId'], 'role': 'source-filter', 'contractVersion': 1, 'timeoutMillis': 30000,
         'pythonScript': "channelMap['sample'] = True\nreturn False",
         'sampleContext': {'msg': {'kind': 'raw', 'text': 'sample'}}}
-    preview = api.call('/extensions/python-runtime/scripts/test', 'POST', sample)
+    preview = api.call('/extensions/oie-python-toolkit/scripts/test', 'POST', sample)
     write(evidence / 'sample-filter-preview.json', preview)
     assert preview['status'] == 'success' and preview['output']['accepted'] is False, preview
     assert preview['output']['mapChanges']['channelMap']['set']['sample'] is True, preview

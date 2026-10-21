@@ -9,7 +9,7 @@
     <fileSets>
         <fileSet>
             <directory>${project.build.directory}/dist</directory>
-            <outputDirectory>python-runtime</outputDirectory>
+            <outputDirectory>oie-python-toolkit</outputDirectory>
             <includes>
                 <include>plugin.xml</include>
                 <include>source.xml</include>
@@ -26,7 +26,7 @@
          pick up stale dist/libs files or the engine's transitive libraries. -->
     <dependencySets>
         <dependencySet>
-            <outputDirectory>python-runtime/libs</outputDirectory>
+            <outputDirectory>oie-python-toolkit/libs</outputDirectory>
             <useProjectArtifact>false</useProjectArtifact>
             <useTransitiveDependencies>false</useTransitiveDependencies>
             <scope>runtime</scope>
@@ -35,7 +35,7 @@
     <files>
         <file>
             <source>${project.basedir}/../LICENSE</source>
-            <outputDirectory>python-runtime</outputDirectory>
+            <outputDirectory>oie-python-toolkit</outputDirectory>
             <filtered>false</filtered>
         </file>
     </files>

@@ -1,8 +1,8 @@
 {
-  "bundle": "package/target/python-runtime-*.zip",
+  "bundle": "package/target/oie-python-toolkit-*.zip",
   "jars": [
-    "python-runtime/libs/oie-python-toolkit-shared-*.jar",
-    "python-runtime/libs/oie-python-toolkit-server-*.jar",
-    "python-runtime/libs/oie-python-toolkit-client-*.jar"
+    "oie-python-toolkit/libs/oie-python-toolkit-shared-*.jar",
+    "oie-python-toolkit/libs/oie-python-toolkit-server-*.jar",
+    "oie-python-toolkit/libs/oie-python-toolkit-client-*.jar"
   ]
 }

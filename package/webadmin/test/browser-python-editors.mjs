@@ -46,7 +46,7 @@ const server = createServer(async (request, response) => {
             response.setHeader('content-type', 'text/html'); response.end(html); return;
         }
         const file = path === '/toolkit.js' ? resolve(here, '../web/plugin.js')
-            : path === '/plugins/python-runtime/web/python-language.json' ? resolve(here, '../web/python-language.json')
+            : path === '/plugins/oie-python-toolkit/web/python-language.json' ? resolve(here, '../web/python-language.json')
             : path === '/harness.js' ? resolve(art, 'browser-harness.js') : resolve(runtime, path.slice(1));
         response.setHeader('content-type', file.endsWith('.css') ? 'text/css'
             : file.endsWith('.woff2') ? 'font/woff2' : file.endsWith('.json') ? 'application/json' : 'text/javascript');
@@ -55,7 +55,7 @@ const server = createServer(async (request, response) => {
 });
 const checks = [], errors = [], observations = {}, hostPythonRequests = [], knownLimits = [];
 const requestsByPage = new WeakMap();
-const isPluginGrammar = url => new URL(url).pathname === '/plugins/python-runtime/web/python-language.json';
+const isPluginGrammar = url => new URL(url).pathname === '/plugins/oie-python-toolkit/web/python-language.json';
 let browser, releaseGrammar;
 async function openPage() {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
@@ -187,7 +187,7 @@ try {
     checks.push('read-only template blocks editing and remount restores editable Monaco; desktop/mobile layout');
 
     const fallback = await openPage();
-    await fallback.route('**/plugins/python-runtime/web/python-language.json*', route => route.abort());
+    await fallback.route('**/plugins/oie-python-toolkit/web/python-language.json*', route => route.abort());
     await show(fallback, 'reader', {}, false);
     await fallback.locator('.ce-area').fill('def helper():\n');
     await fallback.locator('.ce-area').press('End');
@@ -197,14 +197,14 @@ try {
     assert.equal(await fallback.locator('.ce-area').inputValue(), 'def helper():\n');
     await fallback.evaluate(async () => { await (await import('/core/monaco.js')).ensureMonaco('python'); });
     assert.equal(await fallback.evaluate(() => !!window.lastEditor.monaco), false);
-    await fallback.unroute('**/plugins/python-runtime/web/python-language.json*');
+    await fallback.unroute('**/plugins/oie-python-toolkit/web/python-language.json*');
     await show(fallback, 'writer');
     assert.equal(await fallback.evaluate(() => window.lastEditor.monaco.getModel().getLanguageId()), 'python');
     checks.push('failed Python grammar keeps four-space fallback usable; next editor retries successfully');
 
     const delayed = await openPage();
     const gate = new Promise(done => { releaseGrammar = done; });
-    await delayed.route('**/plugins/python-runtime/web/python-language.json*', async route => { await gate; await route.continue(); });
+    await delayed.route('**/plugins/oie-python-toolkit/web/python-language.json*', async route => { await gate; await route.continue(); });
     await show(delayed, 'step', {}, false);
     await delayed.locator('.ce-area').fill('msg = "draft"');
     await delayed.locator('.ce-area').evaluate(area => { area.focus(); area.setSelectionRange(4, 13, 'backward'); });
@@ -248,7 +248,7 @@ try {
 
     const disposing = await openPage();
     const disposeGate = new Promise(done => { releaseGrammar = done; });
-    await disposing.route('**/plugins/python-runtime/web/python-language.json*', async route => { await disposeGate; await route.continue(); });
+    await disposing.route('**/plugins/oie-python-toolkit/web/python-language.json*', async route => { await disposeGate; await route.continue(); });
     await show(disposing, 'template', {}, false);
     await disposing.evaluate(() => { window.removedEditor = window.lastEditor; window.showPanel('settings'); });
     releaseGrammar(); releaseGrammar = null;
@@ -259,7 +259,7 @@ try {
 
     const permission = await openPage();
     const permissionGate = new Promise(done => { releaseGrammar = done; });
-    await permission.route('**/plugins/python-runtime/web/python-language.json*', async route => { await permissionGate; await route.continue(); });
+    await permission.route('**/plugins/oie-python-toolkit/web/python-language.json*', async route => { await permissionGate; await route.continue(); });
     await show(permission, 'template', {}, false);
     await permission.locator('.ce-area').fill('return "preserved"');
     await permission.evaluate(() => {

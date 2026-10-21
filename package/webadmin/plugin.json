@@ -1,6 +1,6 @@
 {
-  "id": "python-runtime",
-  "name": "Python Runtime",
+  "id": "oie-python-toolkit",
+  "name": "Python Toolkit",
   "version": "1.0.0",
   "oie": {
     "apiMin": "4.10"

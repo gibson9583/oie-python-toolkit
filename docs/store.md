@@ -10,7 +10,7 @@ Python filters and transformer steps, reusable Python Functions, polling Python 
 
 ## Install
 
-Download the signed ZIP and `SHA256SUMS` from the GitHub release. Verify the ZIP checksum, install it through the engine extension manager, restart the engine, and reload Web Administrator. The extension is listed as **Python Runtime**; its settings page is **Script Environments**. All three release JARs are signed; local development builds remain unsigned.
+Download the signed ZIP and `SHA256SUMS` from the GitHub release. Verify the ZIP checksum, install it through the engine extension manager, restart the engine, and reload Web Administrator. The extension is listed as **Python Toolkit**; its settings page is **Script Environments**. All three release JARs are signed; local development builds remain unsigned.
 
 The built-in **Python** environment prepares automatically from the approved interpreter without package downloads. Add a Python rule, step, Reader, Writer or Function and select that environment. Use **Script Environments** for profiles with additional dependencies. Prepare changed profiles and redeploy consuming channels to adopt their changes.
 

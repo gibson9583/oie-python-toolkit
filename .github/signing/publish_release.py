@@ -46,7 +46,7 @@ def publish(directory=Path('out'), environ=None):
     if not re.fullmatch(r'[0-9a-fA-F]{40}', source_sha):
         raise ValueError('Invalid workflow source commit')
     source_sha = source_sha.lower()
-    assets = [(directory / f'python-runtime-{tag[1:]}.zip', 'application/zip'),
+    assets = [(directory / f'oie-python-toolkit-{tag[1:]}.zip', 'application/zip'),
               (directory / 'SHA256SUMS', 'text/plain')]
     for path, _ in assets:
         if not path.is_file() or path.stat().st_size == 0:

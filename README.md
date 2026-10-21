@@ -1,6 +1,6 @@
 # OIE Python Toolkit
 
-Python filter rules and transformer steps, reusable **Python Function** code templates, a polling **Python Reader**, a **Python Writer**, and shared dependency profiles for Open Integration Engine. The extension is named **Python Runtime** in the engine's extension manager; the administrator settings page is **Script Environments**.
+Python filter rules and transformer steps, reusable **Python Function** code templates, a polling **Python Reader**, a **Python Writer**, and shared dependency profiles for Open Integration Engine. The extension is named **Python Toolkit** in the engine's extension manager; the administrator settings page is **Script Environments**.
 
 Write the script body directly using the supplied context variables. Filters, Readers, Writers, and Python Functions support ordinary `return`; the runtime handles function execution internally, so no named entry point is required. A `return` exits immediately, with normal Python `finally` behavior. Transformer steps continue to mutate or replace `msg`/`tmp` and do not support a top-level `return`. There is no `ctx` object. Scripts run in persistent CPython processes. Each deployed script binds to one immutable prepared environment. Saving or preparing a profile does not change a running channel; redeploy to adopt a new script or dependency lock. Queued sends use the current deployed Writer, with the engine's existing transformer and retry options.
 
@@ -20,7 +20,7 @@ Build with JDK 17, 21, or 25, Maven, Python 3.11 or later for the build helper, 
 python3 tools/build_with_engine.py --engine-install /path/to/oie
 ```
 
-The helper does not build or modify OIE. It records installed library hashes, runs SDK tests, and verifies the plugin modules. The distributable is `package/target/python-runtime-1.0.0.zip`; its plugin jars are unsigned. Engine libraries, MyBatis, and Rhino are provided dependencies excluded from the ZIP.
+The helper does not build or modify OIE. It records installed library hashes, runs SDK tests, and verifies the plugin modules. The distributable is `package/target/oie-python-toolkit-1.0.0.zip`; its plugin jars are unsigned. Engine libraries, MyBatis, and Rhino are provided dependencies excluded from the ZIP.
 
 For a fresh build without an existing installation, use the checksum-pinned stock OIE download in the [release guide](docs/releasing.md). GitHub Actions runs the Java and web suites on JDK 17, 21 and 25, SDK tests on CPython 3.11–3.14, and isolated engine qualification on OIE 4.6/4.7 with Python 3.11 and 3.14. Tag releases sign the exact CI artifact, verify it on both engines, and publish the signed ZIP with checksums. Test evidence and installed API hashes are retained.
 
@@ -30,7 +30,7 @@ All eight Python source editors use the Web Administrator's shared Monaco editor
 
 Install the ZIP through the standard extension manager and restart OIE when prompted. The plugin creates and prepares **Python** automatically, with no requirements or package downloads. New Python rules, steps and connectors select it by default. It uses the approved CPython interpreter already on the engine node; the default policy resolves `python3` on the engine's PATH. CPython 3.11 or later with `venv` and `ensurepip` is required. The UI reports the actual patch version, rather than assuming `python3` means 3.12. The plugin does not bundle an operating-system Python interpreter.
 
-Python 3.14 is recommended for new installations. For additional dependencies or a specific interpreter, configure optional policy in the plugin-owned `appdata/python-runtime/operator.properties` file. See [operations and deployment limits](docs/operations.md), [testing and support](docs/validation.md), and the [signed release procedure](docs/releasing.md).
+Python 3.14 is recommended for new installations. For additional dependencies or a specific interpreter, configure optional policy in the plugin-owned `appdata/oie-python-toolkit/operator.properties` file. See [operations and deployment limits](docs/operations.md), [testing and support](docs/validation.md), and the [signed release procedure](docs/releasing.md).
 
 ## First channel
 

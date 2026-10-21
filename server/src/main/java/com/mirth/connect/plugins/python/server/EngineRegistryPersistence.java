@@ -136,9 +136,9 @@ final class EngineRegistryPersistence implements RegistryStore.Persistence {
      */
     void update(Properties incoming) throws ControllerException {
         if (incoming == null || incoming.size() != 1 || incoming.getProperty(RegistryStore.PROPERTY_KEY) == null)
-            throw new ControllerException("Python Runtime requires one configuration document; use profile import/export");
+            throw new ControllerException("Python Toolkit requires one configuration document; use profile import/export");
         RegistryStore store = registry.get();
-        if (store == null) throw new ControllerException("Python Runtime registry is not initialized");
+        if (store == null) throw new ControllerException("Python Toolkit registry is not initialized");
         String json = incoming.getProperty(RegistryStore.PROPERTY_KEY);
         synchronized (store) {
             try {

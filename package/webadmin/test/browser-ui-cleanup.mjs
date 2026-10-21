@@ -40,7 +40,7 @@ const server = createServer(async (request, response) => {
         const path = new URL(request.url, 'http://local').pathname;
         if (path === '/') { response.setHeader('content-type', 'text/html'); response.end(html); return; }
         const file = path === '/toolkit.js' ? resolve(here, '../web/plugin.js')
-            : path === '/plugins/python-runtime/web/python-language.json' ? resolve(here, '../web/python-language.json')
+            : path === '/plugins/oie-python-toolkit/web/python-language.json' ? resolve(here, '../web/python-language.json')
             : path === '/harness.js' ? resolve(art, 'browser-harness.js') : resolve(runtime, path.slice(1));
         response.setHeader('content-type', file.endsWith('.css') ? 'text/css'
             : file.endsWith('.json') ? 'application/json' : file.endsWith('.woff2') ? 'font/woff2' : 'text/javascript');
@@ -110,7 +110,7 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/api/**', async route => {
         const request = route.request(), url = new URL(request.url());
-        const path = url.pathname.replace('/api/extensions/python-runtime', '');
+        const path = url.pathname.replace('/api/extensions/oie-python-toolkit', '');
         const body = request.postData() ? JSON.parse(request.postData()) : null;
         let value;
         if (url.pathname === '/api/server/id') {

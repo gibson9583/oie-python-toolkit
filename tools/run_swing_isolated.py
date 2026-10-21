@@ -59,10 +59,10 @@ def client_classpath(home):
 
 def seed(api, profile, ingress, evidence):
     assert profile['name'] == 'Python', profile
-    runtime = api.call('/extensions/python-runtime/runtime')
+    runtime = api.call('/extensions/oie-python-toolkit/runtime')
     sources = [item for item in runtime['packageSources'] if item['kind'] != 'builtin']
-    catalog = api.call('/extensions/python-runtime/profiles')
-    custom = api.call('/extensions/python-runtime/profiles', 'POST', {
+    catalog = api.call('/extensions/oie-python-toolkit/profiles')
+    custom = api.call('/extensions/oie-python-toolkit/profiles', 'POST', {
         'requestId': str(uuid.uuid4()), 'expectedRegistryEpoch': catalog['registryEpoch'],
         'name': 'Swing preservation custom environment', 'runtimeId': runtime['runtimes'][0]['id'],
         'packageSourceId': sources[0]['id'], 'requirementsText': ''})['profile']

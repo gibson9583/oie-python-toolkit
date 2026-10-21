@@ -36,9 +36,9 @@ public final class PythonServicePlugin implements ServicePlugin, ChannelPlugin {
         events = ControllerFactory.getFactory().createEventController();
         creator = () -> {
             try {
-                OperatorConfig config = new OperatorConfig(Paths.get(configuration.getApplicationDataDir(), "python-runtime").toString(), configuration.getServerId());
+                OperatorConfig config = new OperatorConfig(Paths.get(configuration.getApplicationDataDir(), "oie-python-toolkit").toString(), configuration.getServerId());
                 return new PythonRuntime(config, registry, new EngineAccess.Live());
-            } catch (java.io.IOException failure) { throw new IllegalStateException("Cannot initialize Python Runtime storage", failure); }
+            } catch (java.io.IOException failure) { throw new IllegalStateException("Cannot initialize Python Toolkit storage", failure); }
         };
     }
 
@@ -62,7 +62,7 @@ public final class PythonServicePlugin implements ServicePlugin, ChannelPlugin {
             defaults.registryEpoch = UUID.randomUUID().toString();
             return EngineRegistryPersistence.properties(PythonApi.mapper().writeValueAsString(defaults));
         } catch (Exception failure) {
-            throw new IllegalStateException("Cannot safely load Python Runtime registry defaults: storage is unavailable or invalid; startup is stopped to preserve existing profiles", failure);
+            throw new IllegalStateException("Cannot safely load Python Toolkit registry defaults: storage is unavailable or invalid; startup is stopped to preserve existing profiles", failure);
         }
     }
 
@@ -77,7 +77,7 @@ public final class PythonServicePlugin implements ServicePlugin, ChannelPlugin {
         try { if (runtime == null) initializeRuntime(); }
         catch (Exception | Error failure) {
             cleanup(failure);
-            throw new IllegalStateException("Python Runtime initialization failed; inspect the runtime configuration and registry", failure);
+            throw new IllegalStateException("Python Toolkit initialization failed; inspect the runtime configuration and registry", failure);
         }
     }
 
@@ -94,7 +94,7 @@ public final class PythonServicePlugin implements ServicePlugin, ChannelPlugin {
             cleanup(failure);
             if (failure instanceof RuntimeException) throw (RuntimeException) failure;
             if (failure instanceof Error) throw (Error) failure;
-            throw new IllegalStateException("Cannot start Python Runtime", failure);
+            throw new IllegalStateException("Cannot start Python Toolkit", failure);
         }
     }
 
@@ -114,7 +114,7 @@ public final class PythonServicePlugin implements ServicePlugin, ChannelPlugin {
     }
 
     @Override public synchronized void stop() {
-        Throwable failure = new IllegalStateException("Python Runtime cleanup failed");
+        Throwable failure = new IllegalStateException("Python Toolkit cleanup failed");
         cleanup(failure);
         if (failure.getSuppressed().length > 0) throw (IllegalStateException) failure;
     }
@@ -122,17 +122,17 @@ public final class PythonServicePlugin implements ServicePlugin, ChannelPlugin {
     @Override public synchronized void update(Properties properties) {
         try { persistence.update(properties); }
         catch (com.mirth.connect.client.core.ControllerException failure) {
-            throw new IllegalStateException("Python Runtime property replacement was rejected; restore a valid registry and retry", failure);
+            throw new IllegalStateException("Python Toolkit property replacement was rejected; restore a valid registry and retry", failure);
         }
     }
     static RuntimeApi api() {
         PythonServicePlugin service = active;
-        if (service == null || service.api == null) throw new IllegalStateException("Python Runtime is not running");
+        if (service == null || service.api == null) throw new IllegalStateException("Python Toolkit is not running");
         return service.api;
     }
     static <T> T asActor(int actor, java.util.function.Supplier<T> work) {
         PythonServicePlugin service = active;
-        if (service == null) throw new IllegalStateException("Python Runtime is not running");
+        if (service == null) throw new IllegalStateException("Python Toolkit is not running");
         return service.persistence.asActor(actor, work);
     }
 

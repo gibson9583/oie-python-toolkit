@@ -473,7 +473,7 @@ public final class Deployments {
         private static final long serialVersionUID = 1L;
 
         DeployFailure(com.mirth.connect.model.Channel model, List<String> problems) {
-            super("Python Runtime cannot deploy channel \"" + model.getName() + "\":\n - " + String.join("\n - ", problems));
+            super("Python Toolkit cannot deploy channel \"" + model.getName() + "\":\n - " + String.join("\n - ", problems));
         }
     }
 }

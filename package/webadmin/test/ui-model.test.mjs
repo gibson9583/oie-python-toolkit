@@ -40,7 +40,7 @@ test('runtime action pins current epoch and revision and rejects mismatching rep
     assert.equal((await validateRuntime(client,subject,ctx)).status,'valid');assert.equal(posted.expectedEnvironmentRevision,1);assert.equal(posted.expectedRegistryEpoch,'epoch');
     client.post=async()=>JSON.stringify({requestId:posted.requestId,registryEpoch:'old',environmentRevision:1,status:'valid',diagnostics:[]});assert.equal((await validateRuntime(client,subject,ctx)).status,'unavailable');
 });
-test('String REST documents are sent as raw JSON text and decoded once',async()=>{const client={post:async(path,body)=>{assert.equal(path,'/extensions/python-runtime/profiles');assert.equal(body,'{"name":"profile"}');return '{"requestId":"x"}';}};assert.deepEqual(await request(client,'post','/profiles',{name:'profile'}),{requestId:'x'});assert.throws(()=>decode('[]'));});
+test('String REST documents are sent as raw JSON text and decoded once',async()=>{const client={post:async(path,body)=>{assert.equal(path,'/extensions/oie-python-toolkit/profiles');assert.equal(body,'{"name":"profile"}');return '{"requestId":"x"}';}};assert.deepEqual(await request(client,'post','/profiles',{name:'profile'}),{requestId:'x'});assert.throws(()=>decode('[]'));});
 
 test('malformed mutation profiles and preparation jobs fail before draft or readiness publication',()=>{for(const value of [null,{}, {id:'profile',revision:0,registryEpoch:'epoch'},{id:'profile',revision:1}])assert.throws(()=>assertProfileView(value));for(const value of [null,{}, {id:'j',nodeId:'node',registryEpoch:'epoch',profileId:'profile',profileRevision:1,state:'unknown'}])assert.throws(()=>assertJobView(value));});
 
@@ -97,7 +97,7 @@ test('verified Test success requires selected profile identity and an output doc
 test('all String DTO write endpoints send raw JSON text through stock API, not a string-root object',async()=>{
     const operations=[['post','/profiles'],['put','/profiles/profile'],['post','/profiles/profile/prepare'],['post','/profiles/profile/refresh'],['post','/profiles/import'],['post','/scripts/validate'],['post','/scripts/test']];
     const body={requestId:'receipt',name:'API-fed environment',expectedRegistryEpoch:'epoch',expectedRevision:1,requirementsText:''};let calls=0;
-    const write=async(path,text)=>{calls++;assert.ok(path.startsWith('/extensions/python-runtime/'));assert.equal(typeof text,'string');assert.equal(text,JSON.stringify(body));assert.deepEqual(JSON.parse(text),body);assert.equal(JSON.parse(text).string,undefined);return JSON.stringify({requestId:'receipt',status:'accepted'});};
+    const write=async(path,text)=>{calls++;assert.ok(path.startsWith('/extensions/oie-python-toolkit/'));assert.equal(typeof text,'string');assert.equal(text,JSON.stringify(body));assert.deepEqual(JSON.parse(text),body);assert.equal(JSON.parse(text).string,undefined);return JSON.stringify({requestId:'receipt',status:'accepted'});};
     for(const [method,path]of operations)assert.deepEqual(await request({post:write,put:write},method,path,body),{requestId:'receipt',status:'accepted'});assert.equal(calls,operations.length);
     await request({post:async(_path,value)=>{assert.equal(value,undefined);return {status:'accepted'};}},'post','/jobs/id/cancel');
 });

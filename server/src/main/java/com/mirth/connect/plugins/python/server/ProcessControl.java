@@ -192,7 +192,7 @@ public final class ProcessControl {
             } catch (IOException e) {
                 // The process ended or was killed.
             }
-        }, "python-runtime-output");
+        }, "oie-python-toolkit-output");
         reader.setDaemon(true);
         reader.start();
         Thread writer = null;
@@ -203,7 +203,7 @@ public final class ProcessControl {
                 } catch (IOException e) {
                     // The process closed its input early; its exit status reports the problem.
                 }
-            }, "python-runtime-input");
+            }, "oie-python-toolkit-input");
             writer.setDaemon(true);
             writer.start();
         }

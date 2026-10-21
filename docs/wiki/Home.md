@@ -1,6 +1,6 @@
 # Python Toolkit developer wiki
 
-This guide explains how to write, reuse, test, and deploy Python in Open Integration Engine, especially when moving code from JavaScript. It describes the toolkit implementation in this repository. The extension manager calls the plugin **Python Runtime**; its dependency settings are under **Script Environments**.
+This guide explains how to write, reuse, test, and deploy Python in Open Integration Engine, especially when moving code from JavaScript. It describes the toolkit implementation in this repository. The extension manager calls the plugin **Python Toolkit**; its dependency settings are under **Script Environments**.
 
 Screenshots are taken in the OIE Web Administrator, using an isolated OIE 4.7 engine and synthetic example data.
 

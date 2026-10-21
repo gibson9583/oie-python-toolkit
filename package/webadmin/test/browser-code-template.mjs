@@ -21,7 +21,7 @@ const server = createServer(async (req, res) => {
     try {
         const path = new URL(req.url, 'http://local').pathname;
         if (path === '/') { res.setHeader('content-type', 'text/html'); res.end(html); return; }
-        const file = path === '/toolkit.js' ? resolve(here, '../web/plugin.js') : path === '/plugins/python-runtime/web/python-language.json' ? resolve(here, '../web/python-language.json') : path === '/harness.js' ? resolve(art, 'browser-harness.js') : resolve(runtime, path.slice(1));
+        const file = path === '/toolkit.js' ? resolve(here, '../web/plugin.js') : path === '/plugins/oie-python-toolkit/web/python-language.json' ? resolve(here, '../web/python-language.json') : path === '/harness.js' ? resolve(art, 'browser-harness.js') : resolve(runtime, path.slice(1));
         res.setHeader('content-type', file.endsWith('.css') ? 'text/css' : file.endsWith('.woff2') ? 'font/woff2' : file.endsWith('.json') ? 'application/json' : 'text/javascript');
         res.end(await readFile(file));
     } catch (error) { res.statusCode = 404; res.end(error.message); }
@@ -35,7 +35,7 @@ page.on('request', request => requests.push(request.url()));
 let releaseValidation, holdValidation = false, failProfiles = false;
 const profile = { id: 'profile', revision: 2, registryEpoch: 'epoch', name: 'Standard library', runtimeId: 'python', packageSourceId: 'approved', readiness: { state: 'ready', nodeId: 'node', pythonVersion: '3.14.6' } };
 await page.route('**/api/**', async route => {
-    const req = route.request(), url = new URL(req.url()), path = url.pathname.replace('/api/extensions/python-runtime', '');
+    const req = route.request(), url = new URL(req.url()), path = url.pathname.replace('/api/extensions/oie-python-toolkit', '');
     let value;
     if (url.pathname === '/api/server/id') { await route.fulfill({ contentType: 'text/plain', body: 'native-server' }); return; }
     if (path === '/profiles' && failProfiles) { await route.fulfill({ status: 503, body: 'Environment service unavailable' }); return; }
@@ -57,7 +57,7 @@ async function show(options = {}) {
 try {
     await page.goto(`http://127.0.0.1:${server.address().port}/?monaco`);
     await page.waitForFunction(() => window.ready);
-    assert.equal(requests.some(url => url.includes('/plugins/python-runtime/web/python-language.json')), false, 'Settings must not load Python');
+    assert.equal(requests.some(url => url.includes('/plugins/oie-python-toolkit/web/python-language.json')), false, 'Settings must not load Python');
     await show();
     assert.equal(await page.getByLabel('Invocation timeout (milliseconds)', { exact: true }).isVisible(), true);
     assert.equal(await page.getByLabel('Function name', { exact: true }).inputValue(), 'Normalize_patient');
@@ -71,7 +71,7 @@ try {
     assert.equal(receipts[0].functionName, 'normalize_patient');
     assert.deepEqual(receipts[0].contextTypes, ['SOURCE_FILTER_TRANSFORMER']);
     assert.equal(receipts[0].role, 'code-template');
-    assert.equal(requests.filter(url => url.includes('/plugins/python-runtime/web/python-language.json')).length, 1);
+    assert.equal(requests.filter(url => url.includes('/plugins/oie-python-toolkit/web/python-language.json')).length, 1);
     assert.equal(requests.some(url => url.includes('/vendor/monaco/python.js')), false, 'The host must not serve Python grammar');
     const grammar = await page.evaluate(() => ({ language: window.lastEditor.monaco.getModel().getLanguageId(), tabSize: window.lastEditor.monaco.getModel().getOptions().tabSize, spaces: window.lastEditor.monaco.getModel().getOptions().insertSpaces, detectIndentation: window.lastEditor.opts.detectIndentation, keyword: window.monaco.editor.tokenize('def helper():', 'python')[0].some(token => token.type.includes('keyword')) }));
     assert.deepEqual(grammar, { language: 'python', tabSize: 4, spaces: true, detectIndentation: false, keyword: true });

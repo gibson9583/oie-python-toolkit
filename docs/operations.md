@@ -2,20 +2,20 @@
 
 For channel authors, see the [developer wiki](wiki/Home.md) and [environment/deployment guide](wiki/Environments-and-deployment.md). This page covers operator policy and recovery.
 
-Settings resolve from `OIE_PYTHON_RUNTIME_<KEY>` environment variables, then existing `org.openintegrationengine.python-runtime.<key>` JVM properties, then the plugin-owned `operator.properties` file, then defaults. Environment keys are uppercased, replacing dots/dashes with underscores. The API exposes approved runtime/source IDs, not local executables or credentials.
+Settings resolve from `OIE_PYTHON_TOOLKIT_<KEY>` environment variables, then existing `org.openintegrationengine.python-toolkit.<key>` JVM properties, then the plugin-owned `operator.properties` file, then defaults. Environment keys are uppercased, replacing dots/dashes with underscores. The API exposes approved runtime/source IDs, not local executables or credentials.
 
 The built-in **Python** profile needs no administrator configuration. The plugin seeds it without replacing existing profiles and queues its preparation automatically on each starting node. It has an empty requirements list and uses the plugin's fixed, offline standard-library source policy. Preparation creates a private environment and installs only the bundled OIE SDK from a local hash-pinned wheel. It performs no package download. The profile's definition is protected; use a separate profile for additional dependencies.
 
 With the default operator policy, `python3` resolves on the engine process's PATH. The exact CPython patch version is probed and displayed. A custom operator policy keeps interpreter approval authoritative. Execution requires CPython 3.11 or later with its local `venv` and `ensurepip` modules.
 
-Configure this plugin without editing engine files: create `operator.properties` under the engine's application-data directory, in `python-runtime/`. The ZIP includes `operator.properties.example`. Use absolute interpreter paths; for example:
+Configure this plugin without editing engine files: create `operator.properties` under the engine's application-data directory, in `oie-python-toolkit/`. The ZIP includes `operator.properties.example`. Use absolute interpreter paths; for example:
 
 ```text
 runtimes=cpython314=/opt/python/bin/python3.14
 runtime.cpython314.label=CPython 3.14
 sources=internal
 source.internal.indexUrl=https://packages.example.org/simple
-cacheDir=/var/lib/oie/python-runtime
+cacheDir=/var/lib/oie/oie-python-toolkit
 ```
 
 Keep the policy file readable only by the service account and restart the plugin service after policy changes. Back it up separately: registry exports exclude local paths and credentials. It must be a regular file no larger than 64 KiB.

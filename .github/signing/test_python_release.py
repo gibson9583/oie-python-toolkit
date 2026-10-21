@@ -67,14 +67,14 @@ class ReleasePreflightTests(unittest.TestCase):
         import sign_release
 
         config = json.loads((Path(__file__).parent / 'config.json').read_text())
-        self.assertEqual(config['bundle'], 'package/target/python-runtime-*.zip')
-        expected = ['python-runtime/libs/oie-python-toolkit-shared-1.0.0.jar',
-                    'python-runtime/libs/oie-python-toolkit-server-1.0.0.jar',
-                    'python-runtime/libs/oie-python-toolkit-client-1.0.0.jar']
+        self.assertEqual(config['bundle'], 'package/target/oie-python-toolkit-*.zip')
+        expected = ['oie-python-toolkit/libs/oie-python-toolkit-shared-1.0.0.jar',
+                    'oie-python-toolkit/libs/oie-python-toolkit-server-1.0.0.jar',
+                    'oie-python-toolkit/libs/oie-python-toolkit-client-1.0.0.jar']
         data = BytesIO()
         with zipfile.ZipFile(data, 'w') as archive:
-            for name in expected + ['python-runtime/webadmin/web/plugin.js',
-                                    'python-runtime/plugin.xml', 'python-runtime/libs/unrelated.jar']:
+            for name in expected + ['oie-python-toolkit/webadmin/web/plugin.js',
+                                    'oie-python-toolkit/plugin.xml', 'oie-python-toolkit/libs/unrelated.jar']:
                 archive.writestr(name, 'fixture')
         with zipfile.ZipFile(data) as archive:
             self.assertEqual(sign_release.select_jars(archive, config['jars']), expected)
@@ -89,7 +89,7 @@ class ReleasePublicationTests(unittest.TestCase):
         self.directory = Path(temp.name)
         self.environment = {'GITHUB_REPOSITORY': 'fixture/python-toolkit', 'GITHUB_REF_NAME': 'v1.0.0',
                             'GITHUB_SHA': 'a' * 40}
-        for name in ('python-runtime-1.0.0.zip', 'SHA256SUMS'):
+        for name in ('oie-python-toolkit-1.0.0.zip', 'SHA256SUMS'):
             (self.directory / name).write_bytes(b'fixture asset bytes')
         self.existing = {'id': 99, 'tag_name': 'v1.0.0', 'draft': False,
                          'body': 'existing release', 'assets': {'SHA256SUMS': 'existing checksum'}}
@@ -126,7 +126,7 @@ class ReleasePublicationTests(unittest.TestCase):
                 return json.dumps({'name': path.name, 'state': 'uploaded', 'size': path.stat().st_size})
             self.assertEqual((method, endpoint), ('PATCH', 'repos/fixture/python-toolkit/releases/101'))
             self.assertEqual(json.loads(kwargs['input']), {'draft': False})
-            self.assertEqual(set(self.owned['assets']), {'python-runtime-1.0.0.zip', 'SHA256SUMS'})
+            self.assertEqual(set(self.owned['assets']), {'oie-python-toolkit-1.0.0.zip', 'SHA256SUMS'})
             self.owned['draft'] = False
             return json.dumps(self.owned)
 
@@ -168,8 +168,8 @@ class ReleasePublicationTests(unittest.TestCase):
 
     def test_success_exit_with_unconfirmed_asset_does_not_publish(self):
         for response in ({}, {'name': 'SHA256SUMS', 'state': 'uploaded', 'size': 19},
-                         {'name': 'python-runtime-1.0.0.zip', 'state': 'new', 'size': 19},
-                         {'name': 'python-runtime-1.0.0.zip', 'state': 'uploaded', 'size': 0}):
+                         {'name': 'oie-python-toolkit-1.0.0.zip', 'state': 'new', 'size': 19},
+                         {'name': 'oie-python-toolkit-1.0.0.zip', 'state': 'uploaded', 'size': 0}):
             with self.subTest(response=response), self.assertRaises(ValueError):
                 self.calls.clear()
                 self.run_publication(responses={2: response})

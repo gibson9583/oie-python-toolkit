@@ -14,7 +14,7 @@ class PackageInspectionTest(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="toolkit-package-test-")
         self.addCleanup(temporary.cleanup)
-        self.bundle = Path(temporary.name) / "python-runtime-1.0.0.zip"
+        self.bundle = Path(temporary.name) / "oie-python-toolkit-1.0.0.zip"
         # Use the artifact produced by the actual Maven build, not a manufactured engine API.
         self.original = default_plugin().read_bytes()
         self.bundle.write_bytes(self.original)

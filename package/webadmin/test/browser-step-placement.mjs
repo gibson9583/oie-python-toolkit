@@ -31,7 +31,7 @@ builtin.register(platform);
 const plugin = await import('/toolkit.js');
 plugin.register(platform, {getAssetText: async relativePath => {
     if (relativePath !== 'web/python-language.json') throw new Error('Unexpected plugin asset: ' + relativePath);
-    const response = await fetch('/plugins/python-runtime/' + relativePath);
+    const response = await fetch('/plugins/oie-python-toolkit/' + relativePath);
     if (!response.ok) throw new Error('Plugin asset unavailable: ' + response.status);
     return response.text();
 }});
@@ -76,7 +76,7 @@ const server = createServer(async (request, response) => {
         const path = new URL(request.url, 'http://fixture').pathname;
         response.setHeader('content-type', path === '/' ? 'text/html' : path.endsWith('.json') ? 'application/json' : 'text/javascript');
         response.end(path === '/' ? html : path === '/harness.js' ? harness
-            : await readFile(path === '/toolkit.js' ? resolve(here, '../web/plugin.js') : path === '/plugins/python-runtime/web/python-language.json' ? resolve(here, '../web/python-language.json') : resolve(runtime, path.slice(1))));
+            : await readFile(path === '/toolkit.js' ? resolve(here, '../web/plugin.js') : path === '/plugins/oie-python-toolkit/web/python-language.json' ? resolve(here, '../web/python-language.json') : resolve(runtime, path.slice(1))));
     } catch (error) { response.statusCode = 404; response.end(String(error)); }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));

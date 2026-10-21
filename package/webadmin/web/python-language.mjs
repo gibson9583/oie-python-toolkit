@@ -19,7 +19,7 @@ export function parsePythonLanguage(text) {
 
 export function registerPythonEditorLanguage(platform, context) {
     if (typeof platform.registerEditorLanguage !== 'function' || typeof context?.getAssetText !== 'function') {
-        throw new Error('Python Runtime requires the plugin language and asset contracts in Web Administrator API 4.10.');
+        throw new Error('Python Toolkit requires the plugin language and asset contracts in Web Administrator API 4.10.');
     }
     platform.registerEditorLanguage('python', {
         aliases: ['Python'], extensions: ['.py'],

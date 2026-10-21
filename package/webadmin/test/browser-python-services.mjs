@@ -62,7 +62,7 @@ const server = createServer(async (request, response) => {
             response.setHeader('content-type', 'text/html'); response.end(html); return;
         }
         const file = path === '/toolkit.js' ? resolve(here, '../web/plugin.js')
-            : path === '/plugins/python-runtime/web/python-language.json' ? resolve(here, '../web/python-language.json')
+            : path === '/plugins/oie-python-toolkit/web/python-language.json' ? resolve(here, '../web/python-language.json')
             : path === '/harness.js' ? resolve(art, 'browser-harness.js') : resolve(runtime, path.slice(1));
         response.setHeader('content-type', file.endsWith('.css') ? 'text/css'
             : file.endsWith('.woff2') ? 'font/woff2' : file.endsWith('.json') ? 'application/json' : 'text/javascript');

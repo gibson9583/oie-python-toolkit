@@ -11,7 +11,7 @@ public final class PythonContract {
     public static final int CONTRACT_VERSION = 1;
     public static final int CANONICALIZATION_VERSION = 1;
 
-    public static final String EXTENSION_NAME = "Python Runtime";
+    public static final String EXTENSION_NAME = "Python Toolkit";
     public static final String STEP_TYPE = "Python";
     public static final String READER_NAME = "Python Reader";
     public static final String WRITER_NAME = "Python Writer";

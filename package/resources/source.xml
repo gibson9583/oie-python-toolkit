@@ -1,4 +1,4 @@
-<connectorMetaData path="python-runtime">
+<connectorMetaData path="oie-python-toolkit">
     <name>Python Reader</name>
     <author>Chris Gibson</author>
     <pluginVersion>${project.version}</pluginVersion>

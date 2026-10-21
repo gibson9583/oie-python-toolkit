@@ -147,7 +147,7 @@
                             <descriptors>
                                 <descriptor>assembly.xml</descriptor>
                             </descriptors>
-                            <finalName>python-runtime-${project.version}</finalName>
+                            <finalName>oie-python-toolkit-${project.version}</finalName>
                             <appendAssemblyId>false</appendAssemblyId>
                         </configuration>
                     </execution>

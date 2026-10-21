@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: python-toolkit-package
-          path: package/target/python-runtime-*.zip
+          path: package/target/oie-python-toolkit-*.zip
           if-no-files-found: error
 
   engine:
@@ -161,9 +161,9 @@ jobs:
           python3 - <<'PYTHON'
           from pathlib import Path
           from zipfile import ZipFile
-          with ZipFile(next(Path('package/target').glob('python-runtime-*.zip'))) as package:
+          with ZipFile(next(Path('package/target').glob('oie-python-toolkit-*.zip'))) as package:
               for name in ('plugin.js', 'python-language.json', 'python-language.LICENSE.txt'):
-                  Path('package/webadmin/web', name).write_bytes(package.read('python-runtime/webadmin/web/' + name))
+                  Path('package/webadmin/web', name).write_bytes(package.read('oie-python-toolkit/webadmin/web/' + name))
           PYTHON
       - name: Exercise all editor roles, read-only Functions and responsive controls
         working-directory: package/webadmin

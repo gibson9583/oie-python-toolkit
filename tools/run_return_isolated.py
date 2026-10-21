@@ -17,8 +17,8 @@ from run_reader_message_isolated import maximum
 
 
 def sample_cases(api, profile, evidence):
-    runtime = api.call('/extensions/python-runtime/runtime')
-    selected = api.call('/extensions/python-runtime/profiles/' + profile['id'])
+    runtime = api.call('/extensions/oie-python-toolkit/runtime')
+    selected = api.call('/extensions/oie-python-toolkit/profiles/' + profile['id'])
     base = dict(environmentProfileId=profile['id'], expectedRegistryEpoch=selected['registryEpoch'],
                 expectedEnvironmentRevision=selected['revision'], expectedNodeId=runtime['nodeId'],
                 contractVersion=1, timeoutMillis=30000)
@@ -60,7 +60,7 @@ def sample_cases(api, profile, evidence):
             request['sampleContext'] = {'msg': {'kind': 'raw', 'text': 'sample'}}
         elif role == 'reader':
             request['sampleContext'] = {'sourceMap': {'origin': 'seeded'}}
-        response = api.call('/extensions/python-runtime/scripts/test', 'POST', request)
+        response = api.call('/extensions/oie-python-toolkit/scripts/test', 'POST', request)
         observations.append(dict(name=name, request=request, response=response))
         write(evidence / 'sample-results.json', observations)
         assert response['status'] == status, response

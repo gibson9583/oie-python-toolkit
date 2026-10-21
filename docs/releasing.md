@@ -13,7 +13,7 @@ echo "7c82e79027e671277e1d78d0f7bbb1c53ddf1be476f1e80c2ddbfcf7855900ea  ${engine
 tar -xzf "${engine_root}/engine.tar.gz" -C "$engine_root"
 python3 tools/build_with_engine.py --engine-install "${engine_root}/oie"
 python3 tools/inspect_plugin.py
-shasum -a 256 package/target/python-runtime-1.0.0.zip
+shasum -a 256 package/target/oie-python-toolkit-1.0.0.zip
 ```
 
 Choose a fresh private directory for the download and extraction. The helper reads the engine libraries and stages them into the local Maven repository; it never starts or modifies the engine. Preserve `target/installed-api-inputs.json`, the ZIP, its checksum and test evidence, then remove the private extracted installation. Do not use or remove an active or shared engine for this procedure.
@@ -82,10 +82,10 @@ The credential-free Signing checks workflow exercises the pinned CodeSignTool 1.
 5. Publication verifies that the tag still names the tested commit. It creates a new draft release, uploads the signed ZIP and checksums to that returned release ID, confirms both uploads, and only then publishes that ID. Existing releases/assets are never adopted or replaced. A partial failure leaves its draft unpublished; inspect it before retrying. A retry does not silently resume or overwrite a draft.
 6. The catalog job reads the published signed ZIP, computes its checksum and opens a catalog PR using the tagged manifest. The release job calls it explicitly because a release created with `GITHUB_TOKEN` does not trigger another release-event workflow.
 
-The release assets are `python-runtime-1.0.0.zip` and `SHA256SUMS`. Local Maven builds are unsigned. To inspect the published signed ZIP, check out the matching source version and run:
+The release assets are `oie-python-toolkit-1.0.0.zip` and `SHA256SUMS`. Local Maven builds are unsigned. To inspect the published signed ZIP, check out the matching source version and run:
 
 ```sh
-python3 tools/inspect_plugin.py --plugin /path/to/python-runtime-1.0.0.zip \
+python3 tools/inspect_plugin.py --plugin /path/to/oie-python-toolkit-1.0.0.zip \
   --certificate-sha256 "$SSL_COM_CERT_SHA256"
 ```
 

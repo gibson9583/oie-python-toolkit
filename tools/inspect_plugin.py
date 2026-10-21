@@ -43,31 +43,31 @@ def inspect(path, certificate_sha256=None):
     with zipfile.ZipFile(path) as package:
         names = package.namelist()
         assert len(names) == len(set(names)), "Duplicate archive entries"
-        assert all(name.startswith("python-runtime/") and ".." not in Path(name).parts for name in names), "Foreign archive path"
-        metadata = ET.fromstring(package.read("python-runtime/plugin.xml"))
-        assert metadata.get("path") == "python-runtime" and metadata.findtext("mirthVersion") == "4.6.0, 4.7.0"
+        assert all(name.startswith("oie-python-toolkit/") and ".." not in Path(name).parts for name in names), "Foreign archive path"
+        metadata = ET.fromstring(package.read("oie-python-toolkit/plugin.xml"))
+        assert metadata.get("path") == "oie-python-toolkit" and metadata.findtext("mirthVersion") == "4.6.0, 4.7.0"
         assert metadata.findtext("pluginVersion") == version, "Plugin version differs from source"
         for name in ("source.xml", "destination.xml"):
-            connector = ET.fromstring(package.read("python-runtime/" + name))
+            connector = ET.fromstring(package.read("oie-python-toolkit/" + name))
             assert connector.findtext("mirthVersion") == "4.6.0, 4.7.0"
             assert connector.findtext("pluginVersion") == version, "Connector version differs from source"
-        web = json.loads(package.read("python-runtime/webadmin/plugin.json"))
+        web = json.loads(package.read("oie-python-toolkit/webadmin/plugin.json"))
         assert web["oie"]["apiMin"] == "4.10"
         assert web["version"] == version, "Browser plugin version differs from source"
-        assert b"contextInputs" not in package.read("python-runtime/webadmin/web/plugin.js"), "Removed selector contract remains in browser bundle"
-        language_path = "python-runtime/webadmin/web/python-language.json"
+        assert b"contextInputs" not in package.read("oie-python-toolkit/webadmin/web/plugin.js"), "Removed selector contract remains in browser bundle"
+        language_path = "oie-python-toolkit/webadmin/web/python-language.json"
         language = json.loads(package.read(language_path))
         assert language["schemaVersion"] == 1 and language["tokensProvider"]["tokenizer"]
-        assert "Microsoft Corporation" in package.read("python-runtime/webadmin/web/python-language.LICENSE.txt").decode()
+        assert "Microsoft Corporation" in package.read("oie-python-toolkit/webadmin/web/python-language.LICENSE.txt").decode()
         result["editorLanguage"] = {"path": language_path, "sha256": hashlib.sha256(package.read(language_path)).hexdigest(),
                                    "monacoVersion": language["monacoVersion"], "sourceSha256": language["sourceSha256"]}
         assert metadata.find("clientClasses") is None, "Swing plugin registrations must not be packaged"
         for name, panel in CONNECTOR_PANELS.items():
-            connector = ET.fromstring(package.read("python-runtime/" + name))
+            connector = ET.fromstring(package.read("oie-python-toolkit/" + name))
             assert connector.findtext("clientClassName") == panel, "Connector must register only its Swing placeholder panel"
-        assert "python-runtime/operator.properties.example" in names
+        assert "oie-python-toolkit/operator.properties.example" in names
         libraries = [name for name in names if name.endswith(".jar")]
-        expected = {f"python-runtime/libs/oie-python-toolkit-{module}-{metadata.findtext('pluginVersion')}.jar" for module in MODULES}
+        expected = {f"oie-python-toolkit/libs/oie-python-toolkit-{module}-{metadata.findtext('pluginVersion')}.jar" for module in MODULES}
         assert set(libraries) == expected, "Package must contain only the shared, server and client plugin libraries"
         for name in sorted(libraries):
             raw = package.read(name)

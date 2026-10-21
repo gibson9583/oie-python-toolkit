@@ -1,5 +1,5 @@
-<pluginMetaData path="python-runtime">
-    <name>Python Runtime</name>
+<pluginMetaData path="oie-python-toolkit">
+    <name>Python Toolkit</name>
     <author>Chris Gibson</author>
     <pluginVersion>${project.version}</pluginVersion>
     <mirthVersion>${mirth.compatible.versions}</mirthVersion>

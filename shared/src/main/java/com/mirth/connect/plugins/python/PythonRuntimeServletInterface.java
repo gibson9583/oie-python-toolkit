@@ -22,7 +22,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
- * Python Runtime administration API.
+ * Python Toolkit administration API.
  *
  * <p>String parameters and results carry JSON documents defined by
  * {@link PythonApi}. Request bodies contain the raw JSON document; stock
@@ -32,7 +32,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  * <p>Profiles, jobs and readiness are local to the engine node that serves the
  * request. Send job requests to the node that returned the job.</p>
  */
-@Path("/extensions/python-runtime")
+@Path("/extensions/oie-python-toolkit")
 @Tag(name = "Extension Services")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)

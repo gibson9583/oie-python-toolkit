@@ -102,14 +102,14 @@ public final class RegistryStore {
 
     Registry parse(String json) throws IOException {
         if (json == null || json.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 16 * 1024 * 1024) {
-            throw new IOException("The Python Runtime registry exceeds the 16 MiB limit");
+            throw new IOException("The Python Toolkit registry exceeds the 16 MiB limit");
         }
         Registry registry = mapper.readValue(json, Registry.class);
         if (registry.schemaVersion != PythonApi.REGISTRY_SCHEMA_VERSION) {
-            throw new IOException("Unsupported Python Runtime registry schema " + registry.schemaVersion);
+            throw new IOException("Unsupported Python Toolkit registry schema " + registry.schemaVersion);
         }
         if (registry.registryEpoch == null || registry.registryEpoch.isEmpty() || registry.registryEpoch.length() > 200 || registry.registryRevision < 0) {
-            throw new IOException("The Python Runtime registry has no epoch");
+            throw new IOException("The Python Toolkit registry has no epoch");
         }
         if (registry.profiles == null) {
             registry.profiles = new java.util.TreeMap<>();
@@ -118,7 +118,7 @@ public final class RegistryStore {
             registry.recentMutationReceipts = new ArrayList<>();
         }
         if (registry.profiles.size() > 1001 || registry.recentMutationReceipts.size() > MAX_RECEIPTS) {
-            throw new IOException("The Python Runtime registry has too many profiles or receipts");
+            throw new IOException("The Python Toolkit registry has too many profiles or receipts");
         }
         for (Map.Entry<String, Profile> entry : registry.profiles.entrySet()) {
             Profile p = entry.getValue();
@@ -127,7 +127,7 @@ public final class RegistryStore {
                     || !"python".equals(p.language) || p.runtimeId == null || p.runtimeId.isBlank()
                     || p.packageSourceId == null || p.packageSourceId.isBlank()
                     || p.description != null && p.description.length() > RuntimeApi.MAX_DESCRIPTION) {
-                throw new IOException("The Python Runtime registry has a malformed profile " + entry.getKey());
+                throw new IOException("The Python Toolkit registry has a malformed profile " + entry.getKey());
             }
             List<PythonApi.Diagnostic> problems = Requirements.precheck(p.requirementsText, 1024 * 1024);
             if (!problems.isEmpty()) throw new IOException("Profile " + p.name + ": " + problems.get(0).message);
@@ -161,7 +161,7 @@ public final class RegistryStore {
             }
         }
         long customProfiles = registry.profiles.values().stream().filter(profile -> !BuiltInEnvironment.owned(profile)).count();
-        if (customProfiles > 1000) throw new IOException("The Python Runtime registry has too many custom profiles");
+        if (customProfiles > 1000) throw new IOException("The Python Toolkit registry has too many custom profiles");
         for (MutationReceipt receipt : registry.recentMutationReceipts) {
             if (receipt == null || receipt.requestId == null || receipt.requestId.length() > 200 || receipt.operation == null
                     || !digest(receipt.contentDigest) || receipt.resultRevision < 0) throw new IOException("The registry has a malformed mutation receipt");
@@ -269,7 +269,7 @@ public final class RegistryStore {
         try {
             outcome = persistence.write(stored, json, operationId);
         } catch (Exception e) {
-            logger.warn("Python Runtime registry write did not confirm; reconciling", e);
+            logger.warn("Python Toolkit registry write did not confirm; reconciling", e);
             outcome = WriteOutcome.OUTCOME_UNKNOWN;
         }
         if (outcome != WriteOutcome.COMMITTED) {

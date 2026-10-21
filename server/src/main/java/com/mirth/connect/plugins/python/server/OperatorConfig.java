@@ -16,16 +16,16 @@ import com.mirth.connect.plugins.python.CanonicalJson;
 
 /**
  * Operator-owned settings. Each key resolves from the environment variable
- * {@code OIE_PYTHON_RUNTIME_<KEY>} (upper case, dots and dashes as
+ * {@code OIE_PYTHON_TOOLKIT_<KEY>} (upper case, dots and dashes as
  * underscores), then the system property
- * {@code org.openintegrationengine.python-runtime.<key>}, then the plugin's
+ * {@code org.openintegrationengine.python-toolkit.<key>}, then the plugin's
  * {@code operator.properties} file, then the default.
  * Administrators cannot change these through the API.
  */
 public final class OperatorConfig {
 
-    public static final String PROPERTY_PREFIX = "org.openintegrationengine.python-runtime.";
-    public static final String ENV_PREFIX = "OIE_PYTHON_RUNTIME_";
+    public static final String PROPERTY_PREFIX = "org.openintegrationengine.python-toolkit.";
+    public static final String ENV_PREFIX = "OIE_PYTHON_TOOLKIT_";
     static String builtInSourcePolicy() { return CanonicalJson.sha256(Map.of("policyVersion", 1, "source", "bundled-sdk-and-stdlib-only")); }
 
     public static final class Runtime {
@@ -119,7 +119,7 @@ public final class OperatorConfig {
                         || java.nio.file.Files.size(path) > 64 * 1024) throw new java.io.IOException("Operator policy must be a regular file no larger than 64 KiB");
                 try (var reader = java.nio.file.Files.newBufferedReader(path, java.nio.charset.StandardCharsets.UTF_8)) { file.load(reader); }
             }
-        } catch (java.io.IOException failure) { throw new IllegalArgumentException("Cannot read Python Runtime operator.properties", failure); }
+        } catch (java.io.IOException failure) { throw new IllegalArgumentException("Cannot read Python Toolkit operator.properties", failure); }
         return name -> {
             String value = system.apply(name);
             if (value != null) return value;

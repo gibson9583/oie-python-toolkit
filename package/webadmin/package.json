@@ -1,5 +1,5 @@
 {
-  "name": "python-runtime-webadmin",
+  "name": "oie-python-toolkit-webadmin",
   "version": "1.0.0",
   "private": true,
   "type": "module",

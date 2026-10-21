@@ -181,7 +181,7 @@ public final class PreparationManager {
         Files.createDirectories(cacheDir.resolve("staging"));
         this.executor = new ThreadPoolExecutor(config.maxConcurrentPreparations, config.maxConcurrentPreparations, 60, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(32), r -> {
-                    Thread t = new Thread(r, "python-runtime-prepare");
+                    Thread t = new Thread(r, "oie-python-toolkit-prepare");
                     t.setDaemon(true);
                     return t;
                 });

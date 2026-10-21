@@ -1,4 +1,4 @@
-# Optional local operator policy. Copy to appdata/python-runtime/operator.properties.
+# Optional local operator policy. Copy to appdata/oie-python-toolkit/operator.properties.
 # This configures only the plugin; the engine configuration does not need editing.
 # Use a local, operator-installed interpreter. Restart after changing this policy.
 # Replace this example with the absolute path to your approved interpreter.

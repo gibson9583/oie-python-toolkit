@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "python-runtime",
+  "id": "oie-python-toolkit",
   "name": "Python Toolkit",
   "description": "Python filters, transformer steps, reusable functions, Reader and Writer connectors, and managed script environments for Open Integration Engine.",
   "type": "plugin",
@@ -13,7 +13,7 @@
   "version": "1.0.0",
   "minEngineVersion": "4.6.0",
   "maxEngineVersion": "4.7.0",
-  "filename": "python-runtime-{version}.zip",
+  "filename": "oie-python-toolkit-{version}.zip",
   "ui": ["web"],
   "restartRequired": true,
   "storeDocs": "docs/store.md"

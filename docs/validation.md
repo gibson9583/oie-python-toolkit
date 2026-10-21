@@ -15,7 +15,7 @@ The build uses JDK 17, 21, or 25, Maven, and CPython on the `PATH` as `python3`.
    ```
 
    The helper requires Python 3.11 or later. It reads the engine JARs and does not change the installation.
-2. To run the suites again after staging, run `mvn verify` in the repository root. The build writes the extension to `package/target/python-runtime-1.0.0.zip`.
+2. To run the suites again after staging, run `mvn verify` in the repository root. The build writes the extension to `package/target/oie-python-toolkit-1.0.0.zip`.
 3. To run only the SDK tests, run:
 
    ```sh
@@ -23,7 +23,7 @@ The build uses JDK 17, 21, or 25, Maven, and CPython on the `PATH` as `python3`.
    ```
 
 4. To run only the web unit tests from a fresh checkout, run `npm ci`, `npm run build`, then `npm test` in `package/webadmin`. The build generates the plugin bundle, Python language data, and its license; these outputs are not versioned. After dependencies and generated assets are current, use `npm test` directly.
-5. To check the local extension package, run `python3 tools/inspect_plugin.py`. It confirms that the ZIP contains only the three unsigned toolkit JARs and plugin-owned classes. For a signed release, supply `--plugin /path/to/python-runtime-1.0.0.zip --certificate-sha256 <signing-certificate-fingerprint>`; the inspector requires trusted, timestamped signatures from that certificate on all three JARs. Release/tag versions must match the checkout used for inspection.
+5. To check the local extension package, run `python3 tools/inspect_plugin.py`. It confirms that the ZIP contains only the three unsigned toolkit JARs and plugin-owned classes. For a signed release, supply `--plugin /path/to/oie-python-toolkit-1.0.0.zip --certificate-sha256 <signing-certificate-fingerprint>`; the inspector requires trusted, timestamped signatures from that certificate on all three JARs. Release/tag versions must match the checkout used for inspection.
 
 The server tests start real CPython processes. They create private Derby databases and environment caches. Environment caches are removed by their owning tests after worker termination. The JDBC tests use embedded Derby without starting an engine or database process; they confirm database shutdown, retain final rows and database file hashes under `server/target/runtime-evidence/registry-jdbc`, then remove their private directories, including after a failed test body. If evidence capture or shutdown fails, cleanup refuses to delete the database. Historical receipts marked `cleanupPendingJvmExit` need separate ownership and process-exit verification; they do not establish that a path still exists. Do not remove shared or active resources.
 

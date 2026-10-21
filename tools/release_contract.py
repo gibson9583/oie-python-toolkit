@@ -19,7 +19,7 @@ def release_version(root=ROOT):
 
 
 def default_plugin():
-    return ROOT / "package/target" / f"python-runtime-{release_version()}.zip"
+    return ROOT / "package/target" / f"oie-python-toolkit-{release_version()}.zip"
 
 
 def verify_versions(root=ROOT, environ=None):
@@ -41,9 +41,9 @@ def verify_versions(root=ROOT, environ=None):
         if not match or match[1] != version:
             raise ValueError(f"{relative} SDK version must match {version}")
     catalog = json.loads((root / "oie.json").read_text())
-    if catalog["version"] != version or catalog["filename"] != "python-runtime-{version}.zip":
+    if catalog["version"] != version or catalog["filename"] != "oie-python-toolkit-{version}.zip":
         raise ValueError("Catalog version/filename must match the release")
-    if catalog["id"] != "python-runtime" or not (root / catalog["storeDocs"]).is_file():
+    if catalog["id"] != "oie-python-toolkit" or not (root / catalog["storeDocs"]).is_file():
         raise ValueError("Catalog identity/store documentation is invalid")
     supported = ET.parse(root / "pom.xml").findtext("m:properties/m:mirth.compatible.versions", namespaces=NS)
     if supported != "4.6.0, 4.7.0" or catalog["minEngineVersion"] != "4.6.0" or catalog["maxEngineVersion"] != "4.7.0":

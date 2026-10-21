@@ -65,7 +65,7 @@ test('validation sends a template-specific request to the selected node and veri
     const { api, calls } = fixture(), value = subject();
     const result = await validateTemplateRuntime(api, value, { contextTypes: TEMPLATE_CONTEXTS });
     assert.equal(result.status, 'valid');
-    assert.equal(calls[2].path, '/extensions/python-runtime/templates/validate');
+    assert.equal(calls[2].path, '/extensions/oie-python-toolkit/templates/validate');
     assert.equal(calls[2].body.role, 'code-template'); assert.equal(calls[2].body.functionName, value.functionName);
     assert.equal(calls[2].body.expectedNodeId, 'node'); assert.equal(calls[2].body.expectedEnvironmentRevision, 2);
     assert.deepEqual(calls[2].body.contextTypes, TEMPLATE_CONTEXTS); assert.equal(Object.hasOwn(calls[2].body, 'channelId'), false);

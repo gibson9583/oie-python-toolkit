@@ -10,14 +10,14 @@ window.pluginAssetPaths=[];
 const context={getAssetText:async relativePath=>{
     if(relativePath!=='web/python-language.json')throw new Error('Unexpected plugin asset: '+relativePath);
     window.pluginAssetPaths.push(relativePath);
-    const response=await fetch('/plugins/python-runtime/'+relativePath);
+    const response=await fetch('/plugins/oie-python-toolkit/'+relativePath);
     if(!response.ok)throw new Error('Plugin asset unavailable: '+response.status);
     return response.text();
 }};
 const plugin=await import('/toolkit.js');plugin.register(platform,context);window.platform=platform;
 window.showPanel=(kind,options={})=>{
     const connectorKind=kind==='reader'||kind==='writer';
-    const def=kind==='settings'?platform.settingsPanels().find(v=>v.id==='python-runtime'):kind==='template'?platform.codeTemplateTypes().get('python-function'):connectorKind?platform.connectorPanel(kind==='reader'?'Python Reader':'Python Writer',kind==='reader'?'SOURCE':'DESTINATION'):kind==='rule'?platform.ruleType('com.mirth.connect.plugins.python.PythonRule'):platform.stepType('com.mirth.connect.plugins.python.PythonStep');
+    const def=kind==='settings'?platform.settingsPanels().find(v=>v.id==='oie-python-toolkit'):kind==='template'?platform.codeTemplateTypes().get('python-function'):connectorKind?platform.connectorPanel(kind==='reader'?'Python Reader':'Python Writer',kind==='reader'?'SOURCE':'DESTINATION'):kind==='rule'?platform.ruleType('com.mirth.connect.plugins.python.PythonRule'):platform.stepType('com.mirth.connect.plugins.python.PythonStep');
     const template={id:'template',name:'Normalize patient',contextSet:{delegate:{contextType:['SOURCE_FILTER_TRANSFORMER']}}};
     const value=kind==='settings'?null:connectorKind?def.defaults('4.6.0'):kind==='template'?def.create({version:'4.6.0',template}):def.create();if(value){if(!options.useDefault)value.environmentProfileId='profile';Object.assign(value,options.subject||{});}window.subject=value;
     window.root?.unmount();const channel=options.channel||{id:'channel'};platform.store.setState('editingChannel',channel);

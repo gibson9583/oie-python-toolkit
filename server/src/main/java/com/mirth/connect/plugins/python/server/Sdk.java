@@ -122,7 +122,7 @@ public final class Sdk {
             files.put("oie_python/" + entry.getKey(), entry.getValue());
         }
         files.put(distInfo + "METADATA", ("Metadata-Version: 2.1\nName: " + DISTRIBUTION + "\nVersion: " + VERSION
-                + "\nSummary: OIE Python SDK and worker (managed by the Python Runtime extension)\nLicense: MPL-2.0\nRequires-Python: >=3.11\n")
+                + "\nSummary: OIE Python SDK and worker (managed by the Python Toolkit extension)\nLicense: MPL-2.0\nRequires-Python: >=3.11\n")
                         .getBytes(StandardCharsets.UTF_8));
         files.put(distInfo + "WHEEL", "Wheel-Version: 1.0\nGenerator: oie-python-toolkit\nRoot-Is-Purelib: true\nTag: py3-none-any\n"
                 .getBytes(StandardCharsets.UTF_8));

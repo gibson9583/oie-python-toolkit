@@ -77,7 +77,7 @@ final class BuiltInEnvironment {
         profile.runtimeId = config.runtimes.containsKey("python3") ? "python3" : config.runtimes.keySet().iterator().next();
         profile.packageSourceId = PythonContract.BUILTIN_SOURCE_ID; profile.requirementsText = "";
         profile.revision = 1; profile.createdAt = profile.updatedAt = Instant.now().toString();
-        profile.updatedBy = "python-runtime:builtin"; profile.definitionFingerprint = PreparationManager.definitionFingerprint(profile);
+        profile.updatedBy = "oie-python-toolkit:builtin"; profile.definitionFingerprint = PreparationManager.definitionFingerprint(profile);
         return profile;
     }
 

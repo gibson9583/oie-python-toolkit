@@ -70,7 +70,7 @@ public final class PythonRuntime {
         this.deployments = new Deployments(this);
         this.executor = new Executor(this);
         this.housekeeping = Executors.newScheduledThreadPool(2, r -> {
-            Thread t = new Thread(r, "python-runtime-housekeeping");
+            Thread t = new Thread(r, "oie-python-toolkit-housekeeping");
             t.setDaemon(true);
             return t;
         });
@@ -105,7 +105,7 @@ public final class PythonRuntime {
         try { housekeeping.shutdownNow(); } catch (Throwable caught) { failure = accumulate(failure, caught); }
         if (failure instanceof Error error) throw error;
         if (failure instanceof RuntimeException error) throw error;
-        if (failure != null) throw new IllegalStateException("Python Runtime cleanup did not complete", failure);
+        if (failure != null) throw new IllegalStateException("Python Toolkit cleanup did not complete", failure);
     }
 
     private static Throwable accumulate(Throwable first, Throwable next) {
@@ -117,7 +117,7 @@ public final class PythonRuntime {
     public static PythonRuntime require() {
         PythonRuntime runtime = instance;
         if (runtime == null) {
-            throw new IllegalStateException("The Python Runtime extension is not running on this server");
+            throw new IllegalStateException("The Python Toolkit extension is not running on this server");
         }
         return runtime;
     }

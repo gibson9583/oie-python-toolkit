@@ -199,7 +199,7 @@ return 'reader-ok'
 def scenario(api, child, profile, ingress, evidence, receipt):
     shutil.copyfile(__file__, evidence / 'map-scenario.py')
     write(evidence / 'removed-selector-endpoint.json',
-        api.call('/extensions/python-runtime/context-inputs', status=(404,)))
+        api.call('/extensions/oie-python-toolkit/context-inputs', status=(404,)))
     configuration = '<map><entry><string>map-site</string><com.mirth.connect.util.ConfigurationProperty><value>local</value><comment>Owned map qualification</comment></com.mirth.connect.util.ConfigurationProperty></entry></map>'
     api.call('/server/configurationMap', 'PUT', configuration, 'application/xml')
     write(evidence / 'configuration-map.json', api.call('/server/configurationMap'))

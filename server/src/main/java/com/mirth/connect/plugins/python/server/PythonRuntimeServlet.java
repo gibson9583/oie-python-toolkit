@@ -31,7 +31,7 @@ public class PythonRuntimeServlet extends MirthServlet implements PythonRuntimeS
         try { return PythonApi.mapper().writeValueAsString(PythonServicePlugin.asActor(getCurrentUserId(), work)); }
         catch (ApiFailure failure) { throw response(failure); }
         catch (IllegalArgumentException failure) { throw response(ApiFailure.badRequest("INVALID_REQUEST", failure.getMessage())); }
-        catch (IOException failure) { throw response(ApiFailure.unavailable("RESPONSE_UNAVAILABLE", "Cannot encode the Python Runtime response")); }
+        catch (IOException failure) { throw response(ApiFailure.unavailable("RESPONSE_UNAVAILABLE", "Cannot encode the Python Toolkit response")); }
         catch (IllegalStateException failure) { throw response(ApiFailure.unavailable("RUNTIME_UNAVAILABLE", failure.getMessage())); }
     }
     private static MirthApiException response(ApiFailure failure) {
@@ -48,7 +48,7 @@ public class PythonRuntimeServlet extends MirthServlet implements PythonRuntimeS
             T value = PythonApi.mapper().readValue(json, type);
             if (value == null) throw new IOException("request is null");
             return value;
-        } catch (IOException failure) { throw response(ApiFailure.badRequest("INVALID_REQUEST", "Malformed Python Runtime request: " + failure.getMessage())); }
+        } catch (IOException failure) { throw response(ApiFailure.badRequest("INVALID_REQUEST", "Malformed Python Toolkit request: " + failure.getMessage())); }
     }
     private void extraPermission(String operationName) {
         if (!authorized(getCurrentUserId(), operationName)) throw new MirthApiException(Response.Status.FORBIDDEN);

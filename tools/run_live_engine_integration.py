@@ -37,7 +37,7 @@ def main():
     evidence=args.evidence.resolve(); evidence.mkdir(parents=True,exist_ok=True); evidence.chmod(0o700)
     # Stock OIE's CHANNEL.NAME column is limited to 40 characters.
     run=str(uuid.uuid4()); prefix='Python validation '+run[:8]
-    py='/extensions/python-runtime'; profiles=[]; channels=[]; status='running'; failure=None
+    py='/extensions/oie-python-toolkit'; profiles=[]; channels=[]; status='running'; failure=None
     owner={'runId':run,'prefix':prefix,'enginePid':args.pid,'api':args.api,'engineProcessOwned':False,'engineFilesModified':False,'databaseFilesModified':False,'profiles':profiles,'channels':channels}
     write(evidence/'ownership.json',owner)
     def save(cid,model):
