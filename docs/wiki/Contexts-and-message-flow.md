@@ -12,14 +12,14 @@ Every surface receives `logger`, `phase`, read-only `message` metadata, `globalM
 
 | Editor | When it executes | `phase` | Additional variables | Output contract |
 | --- | --- | --- | --- | --- |
-| Source filter: Python rule | During source filtering, before source transformer steps | `source-filter` | `msg`, `has_tmp`, optional `tmp`, per-message maps, `result` | Assign exactly `True` or `False` to `result`; valid document/map edits also apply |
+| Source filter: Python rule | During source filtering, before source transformer steps | `source-filter` | `msg`, `has_tmp`, optional `tmp`, per-message maps | Return exactly `True` or `False`; empty/fallthrough accepts; valid document/map edits also apply |
 | Destination filter: Python rule | During that destination's filtering, before its transformer steps | `destination-filter` | Same as source filter | Same boolean contract; rejection skips this destination |
-| Source transformer: Python step | At its position among source transformer steps, after a successful source filter | `source-transformer` | `msg`, `has_tmp`, optional `tmp`, per-message maps | Mutate or replace `msg`/`tmp`; no `result` output |
-| Destination transformer: Python step | At its position among that destination's steps, after a successful destination filter | `destination-transformer` | Same transformer variables | Mutate or replace `msg`/`tmp`; no `result` output |
+| Source transformer: Python step | At its position among source transformer steps, after a successful source filter | `source-transformer` | `msg`, `has_tmp`, optional `tmp`, per-message maps | Mutate or replace `msg`/`tmp`; no top-level `return` |
+| Destination transformer: Python step | At its position among that destination's steps, after a successful destination filter | `destination-transformer` | Same transformer variables | Mutate or replace `msg`/`tmp`; no top-level `return` |
 | Destination response transformer: Python step | When the engine runs that destination's response transformation | `response-transformer` | Transformer variables plus `response` | Edit response documents and supported `response` fields |
-| Python Reader | Once per engine poll | `reader` | `poll`, `result`; no per-message maps or documents | `None`, one `Message`, or bounded list of `Message` |
-| Python Writer | When the engine invokes that destination send attempt | `writer` | `payload`, per-message maps, `result`; no `msg` or `tmp` | `None`, string, `Status`, or `Response` |
-| Python Function template | Only when a JavaScript filter/transformer explicitly calls its deployed function | Calling transformer phase, as detailed below | `arguments`, per-message maps, `result`; no `msg`, `tmp`, or `response` | JSON-compatible return value assigned to `result` |
+| Python Reader | Once per engine poll | `reader` | Writable invocation-local `sourceMap`; no other per-message maps or documents | `None`, one `Message`, or bounded list of `Message` |
+| Python Writer | When the engine invokes that destination send attempt | `writer` | `payload`, per-message maps; no `msg` or `tmp` | `None`, string, `Status`, or `Response` |
+| Python Function template | Only when a JavaScript filter/transformer explicitly calls its deployed function | Calling transformer phase, as detailed below | `arguments`, per-message maps; no `msg`, `tmp`, or `response` | Return a JSON-compatible value |
 
 `tmp` is absent from the Python globals when the engine supplies no outbound template. Test `has_tmp` before using it. The stock filter/transformer builder can initialize the template before filtering, so filters can see it; they still execute before transformer steps populate its fields.
 
@@ -33,9 +33,9 @@ Enable the template's library for the channel and select its supported source/de
 
 Functions receive the calling message's maps and metadata, but not its document bindings. Pass documents as arguments and assign the returned value in JavaScript. Their return contract accepts JSON scalar roots, unlike native transformer `msg`/`tmp`, which require an object/array for JSON documents. See [Functions, classes, and modules](Functions-classes-and-modules.md) for library setup and reusable Python code.
 
-## One invocation executes top-level Python
+## Script execution
 
-The worker compiles the saved script in `exec` mode and executes its top-level statements in fresh script globals. There is no public `ctx` object, automatic `main()`/`transform()`/`filter()` call, or top-level `return` convention. A helper function runs only when your statements call it.
+Write the script body using the supplied context variables. Filters, Readers, Writers, and Python Functions support ordinary `return`; the runtime handles function execution internally. No named entry point or public `ctx` object is required. A helper function runs only when your statements call it. A `return` exits immediately, and `finally` follows normal Python rules, including cleanup before the return completes. Transformer steps continue to edit `msg`/`tmp`; top-level `return` remains invalid in those steps.
 
 This complete native JSON transformer step assumes `msg` is an object containing a string `name`:
 
@@ -46,7 +46,11 @@ def normalize_name(value):
 msg["name"] = normalize_name(msg["name"])
 ```
 
-An unused `def transform(...):` makes no document change. Assigning `result = {...}` in a transformer also makes no output change. Filters, Readers, Writers, and Python Functions instead start with `result = None` and extract that variable after the top-level statements finish. A missing/deleted `result` behaves like `None`, which is invalid for a filter.
+An unused `def transform(...):` makes no document change. In filters, Readers, Writers, and Python Functions, the authored body executes as a function. An explicit return supplies the output. Filters accept as `True` when the body is empty or execution reaches the end; explicit returns must be boolean, so a bare `return` or `return None` is invalid. Readers, Writers, and Python Functions supply `None` on fallthrough, a bare `return`, or explicit `return None`. `None` emits no Reader messages, produces an empty SENT Writer response, and becomes JSON null for a Python Function.
+
+Script bindings remain available to your helper functions. Definitions in these return-capable contexts execute inside an internal function: do not rely on module-style `__qualname__` or pickling of script-defined classes; put reusable serializable classes in an imported package. `locals()` and `vars()` are not a persistent script-state interface. If dynamic code must define script-global names, use `exec(code, globals())` explicitly.
+
+Script-level variable annotations in these contexts are evaluated when execution reaches them, including on CPython 3.14, unless the script uses `from __future__ import annotations`. Annotations inside your own helpers and classes retain native Python behavior.
 
 Fresh globals do not mean a fresh Python process. Imported modules can remain cached until the worker is recycled. Do not use script globals or module state as durable channel storage, a cross-worker counter, or an external-consumer checkpoint. See [Environments and deployment](Environments-and-deployment.md) for workers and deployed snapshots.
 
@@ -103,7 +107,7 @@ Writer `payload` is later outgoing **text**, chosen from encoded content first, 
 | `send_attempts` | Engine's current value for this message/phase | Absent |
 | `received_date` | ISO instant string only when the engine has a received date | Absent |
 
-Reader `poll` is another read-only mapping containing `id`, a generated UUID string for this poll. It is not an engine message ID or an external acknowledgment token. There is no documented poll timestamp field. Synthetic editor Test supplies sample metadata and does not prove that live Reader metadata contains message identity; see [Editor testing and troubleshooting](Editor-testing-and-troubleshooting.md).
+Reader `sourceMap` is a fresh writable map containing `pollId`, a generated UUID string for this invocation. Its final entries become defaults for every returned `Message`; each message's `source_map` overrides matching keys. `pollId` is not an engine message ID or an external acknowledgment token. It can be overridden and is `"sample"` in synthetic Test. There is no `poll` script global or documented poll timestamp field. Synthetic editor Test supplies sample metadata and does not prove that live Reader metadata contains message identity; see [Editor testing and troubleshooting](Editor-testing-and-troubleshooting.md).
 
 For example, this complete Writer script assumes a text payload and simply reports an accepted response; it performs no external delivery:
 
@@ -112,7 +116,7 @@ from oie_python import Response, Status
 
 logger.info("message=%s destination=%s attempt=%s",
             message["message_id"], message["metadata_id"], message["send_attempts"])
-result = Response(status=Status.SENT, data="accepted", status_message="Recorded")
+return Response(status=Status.SENT, data="accepted", status_message="Recorded")
 ```
 
 ## Response document versus Writer `Response`
@@ -122,10 +126,10 @@ These surfaces have different responsibilities:
 | Operation | Response transformer | Python Writer |
 | --- | --- | --- |
 | Read/edit response body | Use current `msg` and optional `tmp`, according to response datatypes | Produce `Response(data=...)` or a string result |
-| Change status | `response.status = "ERROR"` | `result = Status.ERROR` or `Response(status=...)` |
+| Change status | `response.status = "ERROR"` | `return Status.ERROR` or `Response(status=...)` |
 | Set short status text | `response.status_message = "..."` | `Response(status_message="...")` |
 | Set error detail | `response.error = "..."` | `Response(error="...")` |
-| Replace helper binding | Rebinding `response` has no effect on captured response fields | Assign the desired object to `result` |
+| Replace helper binding | Rebinding `response` has no effect on captured response fields | Return the desired object |
 
 The response-transformer helper exposes only `status`, `status_message`, and `error`; it has no `.data` or Java `.getMessage()` API. The body travels through `msg`/`tmp`. Supported assigned statuses are `SENT`, `ERROR`, and `QUEUED`. Text fields accept strings or `None`. The imported `Response` class is a Writer result type, not a replacement response-transformer helper.
 
@@ -143,6 +147,6 @@ Reader validation precedes the first dispatch, but dispatching a valid list is n
 
 ## Source and verification references
 
-The public baseline is [SDK contract](../sdk.md). The source of the actual globals and extraction contracts is [SDK context implementation](../../python-sdk/oie_python/_context.py); top-level execution is in [worker](../../python-sdk/oie_python/worker.py). The [generated wrappers](../../shared/src/main/java/com/mirth/connect/plugins/python/PythonContract.java), [Python bridge](../../server/src/main/java/com/mirth/connect/plugins/python/server/PythonBridge.java), [Reader adapter](../../server/src/main/java/com/mirth/connect/plugins/python/server/PythonReceiver.java), and [connector conversions](../../server/src/main/java/com/mirth/connect/plugins/python/server/Connectors.java) define live phase, metadata, and content behavior.
+The public baseline is [SDK contract](../sdk.md). The source of the actual globals and extraction contracts is [SDK context implementation](../../python-sdk/oie_python/_context.py); script execution is in [worker](../../python-sdk/oie_python/worker.py). The [generated wrappers](../../shared/src/main/java/com/mirth/connect/plugins/python/PythonContract.java), [Python bridge](../../server/src/main/java/com/mirth/connect/plugins/python/server/PythonBridge.java), [Reader adapter](../../server/src/main/java/com/mirth/connect/plugins/python/server/PythonReceiver.java), and [connector conversions](../../server/src/main/java/com/mirth/connect/plugins/python/server/Connectors.java) define live phase, metadata, and content behavior.
 
 See [testing and support](../validation.md) for maintained suites and qualification limits.

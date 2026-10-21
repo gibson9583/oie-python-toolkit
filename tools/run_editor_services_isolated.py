@@ -47,15 +47,15 @@ def scenario(api, child, profile, ingress, evidence, receipt):
     call('unsupported operation', operation='execute', expected=(400,))
     call('wrong node', expectedNodeId='wrong-node', expected=(409,))
     call('stale environment revision', expectedEnvironmentRevision=profile['revision'] + 1, expected=(409,))
-    invalid = call('invalid source stays unchanged', source='result = {', operation='format')
+    invalid = call('invalid source stays unchanged', source='return {', operation='format')
     assert invalid['ok'] is False, invalid
-    source = '# preserve comment\ntext="a=b,  c"\nresult={"value":1,"list":[1,2]}\n'
+    source = '# preserve comment\ntext="a=b,  c"\nreturn {"value":1,"list":[1,2]}\n'
     formatted = call('document formatting preserves AST', source=source, operation='format')
     assert formatted['ok'] and formatted['text'] != source, formatted
     assert ast.dump(ast.parse(source), include_attributes=False) == ast.dump(ast.parse(formatted['text']), include_attributes=False)
-    selected = call('selection formatting', source='left=1\nresult={"value":1}\nright=2\n', operation='format',
+    selected = call('selection formatting', source='left=1\nreturn {"value":1}\nright=2\n', operation='format',
                     selection={'startLineNumber': 2, 'endLineNumber': 2})
-    assert selected['ok'] and 'result = ' in selected['text'] and 'left' not in selected['text'] and 'right' not in selected['text'], selected
+    assert selected['ok'] and 'return ' in selected['text'] and 'left' not in selected['text'] and 'right' not in selected['text'], selected
     marker = evidence / 'authored-source-executed'
     assert not marker.exists()
     authored = 'open(' + repr(str(marker)) + ', "w").write("unexpected")\nlogger.'

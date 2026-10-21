@@ -18,7 +18,7 @@ from run_code_template_isolated import ROOT, make_template, make_channel, run as
 def run(api, child, profile, ingress, evidence, receipt):
     shutil.copyfile(__file__, evidence / 'template-race-scenario.py')
     template_id, library_id, channel_id = [str(uuid.uuid4()) for _ in range(3)]
-    template = make_template(template_id, "result = arguments[0] + '|A'\n")
+    template = make_template(template_id, "return arguments[0] + '|A'\n")
     write(evidence / 'template-A-submitted.json', template)
     saved = api.call('/codeTemplates/' + template_id, 'PUT', template)
     assert saved is True or saved.get('boolean') is True, saved
@@ -64,7 +64,7 @@ def run(api, child, profile, ingress, evidence, receipt):
                 time.sleep(0.05)
             timeline.append({'event': 'stock-deploy-script-running', 'time': time.time()})
             updated = copy.deepcopy(template)
-            updated['codeTemplate']['properties']['pythonScript'] = "result = arguments[0] + '|B'\n"
+            updated['codeTemplate']['properties']['pythonScript'] = "return arguments[0] + '|B'\n"
             save_b = api.call('/codeTemplates/' + template_id + '?override=true', 'PUT', updated)
             write(evidence / 'template-B-save-during-deploy.json', save_b)
             assert save_b is True or save_b.get('boolean') is True, save_b

@@ -51,9 +51,10 @@ final class SampleContext {
             context.put("maxMessages", maxReaderMessages);
             Object ids = sample.get("destinationIds");
             context.put("destinationIds", ids instanceof List ? ids : new ArrayList<>());
-            Map<String, Object> poll = new LinkedHashMap<>();
-            poll.put("sample", true);
-            context.put("poll", poll);
+            Map<String, Object> sourceMap = plainMap(sample.get("sourceMap"));
+            sourceMap.putIfAbsent("pollId", "sample");
+            Connectors.checkSourceMap(sourceMap);
+            context.put("sourceMap", Wire.encodeMap(sourceMap, "sourceMap"));
             return new SampleContext(role, context, maps, null, null);
         }
         maps.add(ScriptMaps.CHANNEL, plainMap(sample.get("channelMap")), true)

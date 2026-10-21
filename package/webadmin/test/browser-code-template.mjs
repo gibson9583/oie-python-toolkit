@@ -62,7 +62,7 @@ try {
     assert.equal(await page.getByLabel('Function name', { exact: true }).inputValue(), 'Normalize_patient');
     await page.getByLabel('Function name', { exact: true }).fill('normalize_patient');
     await page.getByLabel('Script environment', { exact: true }).selectOption('profile');
-    await page.evaluate(() => window.lastEditor.setValue('result = str(arguments[0]).strip().upper()\n'));
+    await page.evaluate(() => window.lastEditor.setValue('return str(arguments[0]).strip().upper()\n'));
     // setValue is intentionally silent; user edits fire the model change listener.
     await page.evaluate(() => window.lastEditor.monaco.executeEdits('test', [{ range: { startLineNumber: 2, startColumn: 5, endLineNumber: 2, endColumn: 5 }, text: ' ' }]));
     await page.getByRole('button', { name: 'Validate Python', exact: true }).click();

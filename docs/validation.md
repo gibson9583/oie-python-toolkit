@@ -1,5 +1,7 @@
 # Testing and support
 
+When changing script execution, cover native source/destination filters, Reader, Writer, and Python Function calls, with early exit, explicit `None`, fallthrough, `finally`, filter acceptance on empty/fallthrough paths and rejection of explicit null returns, and transformer rejection of top-level `return`. Exercise validation, editor tooling, deployment, and live runtime behavior together.
+
 For editor validation, synthetic sample JSON, and channel-author checks, see [Editor, testing, and troubleshooting](wiki/Editor-testing-and-troubleshooting.md). The [developer wiki](wiki/Home.md) covers all Python execution contexts.
 
 ## Run the tests
@@ -51,4 +53,4 @@ The browser checks require a sibling Web Administrator build. Run them in `packa
 - The service keeps the IDs of retired deployments and finished preparation jobs in memory until the plugin stops.
 - A package source with credentials in its index URL gets a new policy identity when the credentials change. Prepare the environments again, then redeploy.
 
-The maintained isolated runners `tools/run_filter_isolated.py`, `tools/run_reader_message_isolated.py`, and `tools/run_writer_response_isolated.py` qualify native filters and connector result contracts against a supplied stock engine archive. Each uses the common isolated lifecycle, preserves evidence and immutable input hashes, and removes its owned installation and database after process exit. Run against both supported stock versions with `--engine`, `--java-home`, `--python`, and a fresh `--evidence` directory.
+The maintained isolated runners `tools/run_filter_isolated.py`, `tools/run_reader_message_isolated.py`, and `tools/run_writer_response_isolated.py` exercise native filters and connector result contracts against a supplied stock engine archive. Use `tools/run_return_isolated.py` for script return behavior, and `tools/run_editor_services_isolated.py` for editor services and Monaco checks. A runner's presence does not establish that a release passed; retain results for the exact plugin and engine inputs tested. Each uses the common isolated lifecycle, preserves evidence and immutable input hashes, and removes its owned installation and database after process exit. Run against both supported stock versions with `--engine`, `--java-home`, `--python`, and a fresh `--evidence` directory.

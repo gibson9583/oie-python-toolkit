@@ -62,7 +62,7 @@ test('stale source, environment, cancellation and disposed ownership suppress ed
 test('format selection expands to touched full lines and failed formatting never returns edits', async () => {
     const f = fixture();
     try {
-        f.next({ ok: true, text: 'result = 1\n' });
+        f.next({ ok: true, text: 'return 1\n' });
         const edits = await f.providers.range.provideDocumentRangeFormattingEdits(f.model,
             { startLineNumber: 1, startColumn: 4, endLineNumber: 3, endColumn: 1 }, {}, {});
         assert.deepEqual(f.requests[0].selection, { startLineNumber: 1, endLineNumber: 2 });

@@ -131,6 +131,7 @@ def main():
     from ._codec import MAX_FRAME_BYTES, ContractError, ProtocolError, read_frame, write_frame
     from ._context import CONTEXTS, ScriptLogger
     from ._result_types import UnsupportedValueError
+    from ._script import compile_script, execute_script
     from .validate import describe_python
 
     max_frame = int(os.environ.get("OIE_PYTHON_MAX_FRAME", MAX_FRAME_BYTES))
@@ -209,7 +210,7 @@ def main():
         if role not in CONTEXTS:
             return error(request.get("id"), "protocol", "unknown role %r" % role)
         try:
-            code = compile(request["source"], label, "exec", dont_inherit=True)
+            code = compile_script(request["source"], role, label)
         except SyntaxError as e:
             return error(request.get("id"), "syntax", "%s" % e.msg, line=e.lineno, column=e.offset)
         compiled[spec] = (code, role, label)
@@ -236,8 +237,8 @@ def main():
         try:
             ctx = CONTEXTS[role](request["context"], logger)
             module_globals.update(ctx.script_globals())
-            exec(code, module_globals)
-            result = ctx.result_from_globals(module_globals)
+            returned = execute_script(code, module_globals)
+            result = ctx.result_from_globals(module_globals, returned)
         except ProtocolError as e:
             return error(request_id, "protocol", str(e))
         except BaseException as e:  # noqa: BLE001 - every script failure is reported

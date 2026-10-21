@@ -265,7 +265,7 @@ def run(args, scenario=None):
         source_a = ("assert 'ctx' not in globals()\n"
             "print('flat-template-' + arguments[1] + '-print')\n"
             "logger.warning('flat-template-' + arguments[1] + '-warning')\n"
-            "result = arguments[0] + '|A-' + arguments[1]\n")
+            "return arguments[0] + '|A-' + arguments[1]\n")
         model = make_template(template_id, source_a)
         write(evidence / 'template-submitted.json', model)
         saved = api.call('/codeTemplates/' + template_id, 'PUT', model)
@@ -321,11 +321,11 @@ def run(args, scenario=None):
             assert rejected['code'] == 'INVALID_REQUEST', rejected
             reserved_results[name] = rejected
         write(evidence / 'validation-reserved-names.json', reserved_results)
-        compile_only = {**body, 'requestId': str(uuid.uuid4()), 'pythonScript': "raise RuntimeError('MUST_NOT_EXECUTE')\nresult = None\n"}
+        compile_only = {**body, 'requestId': str(uuid.uuid4()), 'pythonScript': "raise RuntimeError('MUST_NOT_EXECUTE')\nreturn None\n"}
         result = api.call(PYTHON + '/templates/validate', 'POST', compile_only)
         write(evidence / 'validation-compile-only.json', result)
         assert result['status'] == 'valid', result
-        malformed = {**body, 'requestId': str(uuid.uuid4()), 'pythonScript': 'result = (\n'}
+        malformed = {**body, 'requestId': str(uuid.uuid4()), 'pythonScript': 'return (\n'}
         result = api.call(PYTHON + '/templates/validate', 'POST', malformed)
         write(evidence / 'validation-malformed.json', result)
         assert result['status'] == 'invalid', result

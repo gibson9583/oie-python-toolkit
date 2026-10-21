@@ -37,7 +37,7 @@ public class PythonReceiverProperties extends ConnectorProperties
         setPluginProperties(new HashSet<>());
         pollConnectorProperties = new PollConnectorProperties();
         sourceConnectorProperties = new SourceConnectorProperties();
-        pythonScript = "";
+        pythonScript = "return None\n";
         environmentProfileId = PythonContract.DEFAULT_PROFILE_ID;
         environmentNameHint = PythonContract.DEFAULT_PROFILE_NAME;
         timeoutMillis = PythonContract.DEFAULT_TIMEOUT_MILLIS;

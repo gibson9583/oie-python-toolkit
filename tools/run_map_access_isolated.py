@@ -112,7 +112,7 @@ globalChannelMap.put('function', phase)
 channelMap.put('function', phase)
 connectorMap.put('function', phase)
 responseMap.put('function', phase)
-result = arguments[0] + '|' + phase
+return arguments[0] + '|' + phase
 """
     model = make_template(template_id, source)
     write(evidence / 'function-submitted.json', model)
@@ -151,7 +151,7 @@ globalChannelMap.put('writer', 'python')
 channelMap.put('writer', 'python')
 connectorMap.put('writer', 'python')
 responseMap.put('writer', 'python')
-result = 'writer-ok'
+return 'writer-ok'
 """
     model.find('destinationConnectors/connector/responseTransformer/elements').append(javascript_step("""
 if (String(globalMap.get('writer')) !== 'python' || String(globalChannelMap.get('writer')) !== 'python') throw 'Writer shared changes missing';
@@ -168,17 +168,18 @@ def reader(api, child, profile, evidence):
     model.find('sourceConnector/properties/pythonScript').text = """
 from oie_python import Message
 assert configurationMap['map-site'] == 'local'
-assert 'channelMap' not in globals() and 'sourceMap' not in globals()
+assert 'channelMap' not in globals() and 'poll' not in globals()
+assert isinstance(sourceMap['pollId'], str)
 assert globalMap['writer'] == 'python'
 globalMap.put('reader', 'python')
 globalChannelMap.put('reader', 'python')
-result = Message('reader-input', source_map={'origin': 'reader'})
+return Message('reader-input', source_map={'origin': 'reader'})
 """
     model.find('destinationConnectors/connector/properties/pythonScript').text = """
 assert globalMap['reader'] == 'python' and globalChannelMap['reader'] == 'python'
 assert sourceMap['origin'] == 'reader'
 print('map-reader-dispatched')
-result = 'reader-ok'
+return 'reader-ok'
 """
     body = ET.tostring(model, encoding='unicode'); (folder / 'channel-submitted.xml').write_text(body)
     api.call('/channels/' + channel_id, 'PUT', body, 'application/xml')

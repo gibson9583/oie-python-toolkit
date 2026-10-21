@@ -41,7 +41,7 @@ class PythonCodeTemplateTest {
             var deployment = PythonRuntimeIntegrationTest.deployment(UUID.randomUUID().toString(), fixture.profileId, "step");
             var properties = new PythonCodeTemplateProperties(); properties.setEnvironmentProfileId(fixture.profileId);
             properties.setFunctionName("py_echo");
-            properties.setPythonScript("result = float('nan') if arguments and arguments[0] == 'bad' else "
+            properties.setPythonScript("return float('nan') if arguments and arguments[0] == 'bad' else "
                     + "{'arguments': arguments, 'phase': phase, 'site': configurationMap['site'], 'version': 'A'}\n");
             var template = template(properties); var library = library(template, deployment.model().getId());
             when(fixture.runtime.engine.codeTemplateLibraries()).thenReturn(List.of(library));
@@ -78,7 +78,7 @@ class PythonCodeTemplateTest {
                         PythonContract.ROLE_SOURCE_TRANSFORMER, "py_echo(" + argument + ")"), argument);
                 assertTrue(failure.getMessage().contains("Python function arguments"), failure.getMessage());
             }
-            properties.setPythonScript("result = 'B'\n");
+            properties.setPythonScript("return 'B'\n");
             assertEquals("A", PythonApi.mapper().readTree(invoke(deployment, wrapper, 0, PythonContract.ROLE_SOURCE_TRANSFORMER, "py_echo()")).get("version").asText());
             assertThrows(RuntimeException.class, () -> invoke(deployment, properties.getCode(), 0, PythonContract.ROLE_SOURCE_TRANSFORMER, "py_echo()"));
             var newer = PythonRuntimeIntegrationTest.deployment(deployment.model().getId(), fixture.profileId, "step");
@@ -127,8 +127,8 @@ class PythonCodeTemplateTest {
             var request = new PythonApi.ProfileRequest(); request.requestId = UUID.randomUUID().toString(); request.expectedRegistryEpoch = fixture.registry.epoch();
             request.name = "Saved but not prepared"; request.runtimeId = "python3"; request.packageSourceId = "offline"; request.requirementsText = "";
             String unpreparedProfile = fixture.api.create("test", request).profile.id;
-            var ok = new PythonCodeTemplateProperties(); ok.setEnvironmentProfileId(fixture.profileId); ok.setFunctionName("py_ok"); ok.setPythonScript("result = 'ok'\n");
-            var broken = new PythonCodeTemplateProperties(); broken.setEnvironmentProfileId(fixture.profileId); broken.setFunctionName("py_broken"); broken.setPythonScript("result = (\n");
+            var ok = new PythonCodeTemplateProperties(); ok.setEnvironmentProfileId(fixture.profileId); ok.setFunctionName("py_ok"); ok.setPythonScript("return 'ok'\n");
+            var broken = new PythonCodeTemplateProperties(); broken.setEnvironmentProfileId(fixture.profileId); broken.setFunctionName("py_broken"); broken.setPythonScript("return (\n");
             var unprepared = new PythonCodeTemplateProperties(); unprepared.setEnvironmentProfileId(unpreparedProfile); unprepared.setFunctionName("py_unprepared");
             var library = library(template(ok), model.getId()); library.getCodeTemplates().add(template(broken)); library.getCodeTemplates().add(template(unprepared));
             when(fixture.runtime.engine.codeTemplateLibraries()).thenReturn(List.of(library));
@@ -167,7 +167,7 @@ class PythonCodeTemplateTest {
         assertInstanceOf(PythonCodeTemplateProperties.class, restored.getProperties());
         assertEquals(properties.getPythonScript(), ((PythonCodeTemplateProperties) restored.getProperties()).getPythonScript());
         assertEquals(properties.getCode(), restored.getCode()); assertFalse(restored.getCode().contains("def call"));
-        var copy = properties.clone(); copy.setPythonScript("result = 42\n"); assertNotEquals(properties.getPythonScript(), copy.getPythonScript());
+        var copy = properties.clone(); copy.setPythonScript("return 42\n"); assertNotEquals(properties.getPythonScript(), copy.getPythonScript());
         assertThrows(IllegalArgumentException.class, () -> PythonContract.templateWrapper("x); dangerous()", "a".repeat(64)));
     }
 }

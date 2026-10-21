@@ -12,7 +12,7 @@ class PythonRuleTest {
         PythonRule rule = new PythonRule();
         rule.setOperator(Rule.Operator.OR);
         rule.setEnabled(true);
-        rule.setPythonScript("result = not msg['reject']");
+        rule.setPythonScript("return not msg['reject']");
         rule.setEnvironmentProfileId("profile");
         XStream stream = new XStream(new Xpp3Driver());
         stream.allowTypesByWildcard(new String[] {"com.mirth.connect.**"});
@@ -25,7 +25,7 @@ class PythonRuleTest {
     }
     @Test void wrapperReturnsPredicateAndDoesNotEmbedAuthoredSource() {
         PythonRule rule = new PythonRule();
-        rule.setPythonScript("result = __import__('anything')");
+        rule.setPythonScript("return __import__('anything')");
         String wrapper = rule.getScript(true);
         assertTrue(wrapper.startsWith("return (function"));
         assertTrue(wrapper.contains("executeFilter("));

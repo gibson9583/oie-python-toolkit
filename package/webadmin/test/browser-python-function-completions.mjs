@@ -84,8 +84,8 @@ try {
         enabledChannelIds: { string: ['channel'] }, disabledChannelIds: '',
         codeTemplates: { codeTemplate: [{ id: 'python-template', name: 'Normalize Patient', revision: 1,
             contextSet: { delegate: { contextType: contexts } },
-            properties: { '@class': 'com.mirth.connect.plugins.python.PythonCodeTemplateProperties', type: 'FUNCTION', functionName: 'normalize_patient', pythonScript: 'result = arguments[0]', environmentProfileId: 'profile' }
-        }, { id: 'second-python-template', name: 'Other Helper', revision: 1, contextSet: { delegate: { contextType: contexts } }, properties: { '@class': 'com.mirth.connect.plugins.python.PythonCodeTemplateProperties', type: 'FUNCTION', functionName: 'other_helper', pythonScript: 'result = None', environmentProfileId: 'profile' } }] }
+            properties: { '@class': 'com.mirth.connect.plugins.python.PythonCodeTemplateProperties', type: 'FUNCTION', functionName: 'normalize_patient', pythonScript: 'return arguments[0]', environmentProfileId: 'profile' }
+        }, { id: 'second-python-template', name: 'Other Helper', revision: 1, contextSet: { delegate: { contextType: contexts } }, properties: { '@class': 'com.mirth.connect.plugins.python.PythonCodeTemplateProperties', type: 'FUNCTION', functionName: 'other_helper', pythonScript: 'return None', environmentProfileId: 'profile' } }] }
     }] } }) }));
     await page.evaluate(async () => {
         const { createCodeEditor } = await import('/core/codeeditor.js');

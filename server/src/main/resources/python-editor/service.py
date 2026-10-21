@@ -22,17 +22,15 @@ def context_source(role):
                   'sourceMap: _Mapping[str, _Any]', 'responseMap: _ScriptMap']
     if role.endswith('transformer') or role in ('source-filter', 'destination-filter'):
         lines += ['msg: _Any', 'tmp: _Any', 'has_tmp: bool']
-        if role in ('source-filter', 'destination-filter'):
-            lines += ['result: bool']
         if role == 'response-transformer':
             lines += ['from oie_python._context import _ResponseFields as _ResponseFields',
                       'response: _ResponseFields']
     elif role == 'writer':
-        lines += ['payload: _Optional[str]', 'result: _Any']
+        lines += ['payload: _Optional[str]']
     elif role == 'reader':
-        lines += ['poll: _Mapping[str, _Any]', 'result: _Any']
+        lines += ['sourceMap: _ScriptMap']
     elif role == 'code-template':
-        lines += ['arguments: list', 'result: _Any']
+        lines += ['arguments: list']
     return '\n'.join(lines) + '\n'
 
 
@@ -46,8 +44,11 @@ def comments(source):
 
 
 def format_source(request):
+    from oie_python._script import compile_script
     import autopep8
     source = request['pythonScript']
+    role = script_role(request['role'])
+    compile_script(source, role)
     before = tree(source)  # Invalid/incomplete programs are never rewritten.
     options = {'aggressive': 0, 'experimental': False, 'ignore_local_config': True,
                'ignore': ['E501'], 'max_line_length': 100, 'indent_size': 4}
@@ -55,6 +56,7 @@ def format_source(request):
     if selection:
         options['line_range'] = [selection['startLineNumber'], selection['endLineNumber']]
     candidate = autopep8.fix_code(source, options=options)
+    compile_script(candidate, role)
     if tree(candidate) != before or comments(candidate) != comments(source):
         raise ValueError('Formatting would change Python semantics or comments')
     if selection:
@@ -86,16 +88,27 @@ def analyze(request, sdk_path, package_paths):
                            added_sys_path=[sdk_path] + package_paths,
                            smart_sys_path=False, load_unsafe_extensions=False)
     prefix = context_source(request['role'])
-    script = jedi.Script(prefix + request['pythonScript'], project=project,
+    source = request['pythonScript']
+    indentation = 0
+    if script_role(request['role']) != 'transform':
+        context_names = [node.target.id for node in ast.parse(prefix).body
+                         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)]
+        prefix += 'def __oie_editor_body__():\n    global ' + ', '.join(context_names) + '\n'
+        # Python normalizes CRLF/bare CR to LF. Keep the last empty line so
+        # cursor columns on a newline-terminated draft include its indentation.
+        source = source.replace('\r\n', '\n').replace('\r', '\n')
+        source = '    ' + source.replace('\n', '\n    ')
+        indentation = 4
+    script = jedi.Script(prefix + source, project=project,
                          environment=InterpreterEnvironment())
     line = request['line'] + prefix.count('\n')
-    column = request['column']
+    column = request['column'] + indentation
     operation = request['operation']
     if operation == 'complete':
         items = script.complete(line, column)
         items.sort(key=lambda item: item.name not in {'logger', 'phase', 'message', 'globalMap', 'globalChannelMap',
                    'configurationMap', 'channelMap', 'connectorMap', 'sourceMap', 'responseMap', 'msg', 'tmp',
-                   'has_tmp', 'response', 'payload', 'poll', 'arguments', 'result'})
+                   'has_tmp', 'response', 'payload', 'arguments'})
         return {'items': [{'name': item.name, 'type': item.type,
                            'description': item.description[:512],
                            'prefixLength': item.get_completion_prefix_length()}
@@ -112,7 +125,15 @@ def analyze(request, sdk_path, package_paths):
     raise ValueError('Unknown editor operation')
 
 
+def script_role(role):
+    if role in ('source-filter', 'destination-filter'):
+        return 'filter'
+    return {'reader': 'read', 'writer': 'write', 'code-template': 'call'}.get(role, 'transform')
+
+
 def main():
+    # Only the pinned SDK is importable; dependency paths remain static-only.
+    sys.path.insert(0, sys.argv[1])
     request = json.load(sys.stdin)
     try:
         result = (format_source(request) if request['operation'] == 'format' else

@@ -18,17 +18,17 @@ This guide explains how to write, reuse, test, and deploy Python in Open Integra
 
 ## The execution model
 
-Python scripts run in CPython worker processes. The engine supplies ordinary Python variables for the selected context. Write top-level statements, import modules, define classes or helpers, and call those helpers yourself. There is no `ctx` variable or automatic `main()`, `transform()`, `read()`, or `write()` call.
+Python scripts run in CPython worker processes. The engine supplies ordinary Python variables for the selected context. Write the script body directly, import modules, define classes or helpers, and call those helpers yourself. Filters, Readers, Writers, and Python Functions return their output; the runtime handles function execution internally. No named entry point or `ctx` variable is required. Transformers continue to edit `msg`/`tmp` and do not support top-level `return`.
 
 Each invocation gets fresh script globals. A worker can survive many invocations, and imported modules can remain cached in that worker. Do not use module globals, class instances, or process identity as durable channel state. Maps and external storage have their own scope and concurrency rules.
 
 | Surface | How the engine receives the result |
 | --- | --- |
-| Source or destination Python filter | Assign exactly `True` or `False` to `result` |
+| Source or destination Python filter | Return exactly `True` or `False`; an empty body or fallthrough accepts as `True` |
 | Source, destination, or response Python transformer | Edit or replace `msg` and, when present, `tmp`; response transformers can also edit `response` fields |
-| Python Reader | Assign `None`, a `Message`, or a list of `Message` objects to `result` |
-| Python Writer | Assign `None`, a string, a `Response`, or a `Status` to `result` |
-| Python Function code template | Read positional `arguments`; assign a JSON-compatible `result` for the calling JavaScript |
+| Python Reader | Return `None`, a `Message`, or a list of `Message` objects |
+| Python Writer | Return `None`, a string, a `Response`, or a `Status` |
+| Python Function code template | Read positional `arguments`; return a JSON-compatible value for the calling JavaScript |
 
 The toolkit copies supported documents and maps across the Java/Python boundary. It validates the returned values before applying that invocation's changes. Python does not receive live Java/Rhino objects. External network, database, and filesystem operations are ordinary Python operations and cannot be rolled back by the toolkit.
 

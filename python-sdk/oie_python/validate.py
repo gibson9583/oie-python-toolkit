@@ -10,6 +10,8 @@ import platform
 import sys
 import sysconfig
 
+from ._script import compile_script
+
 ROLES = ("filter", "transform", "read", "write", "call")
 
 
@@ -24,7 +26,7 @@ def check(source, role, label="<script>"):
     if role not in ROLES:
         return [_diagnostic("UNKNOWN_ROLE", "unknown script role %r" % role)]
     try:
-        compile(source, label, "exec", dont_inherit=True)
+        compile_script(source, role, label)
     except SyntaxError as e:
         return [_diagnostic("PYTHON_SYNTAX", e.msg, e.lineno, e.offset)]
     except (ValueError, RecursionError, MemoryError) as e:

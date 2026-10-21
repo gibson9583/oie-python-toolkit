@@ -4,18 +4,17 @@
 
 Use a **Python Reader** to produce channel messages on the engine's polling schedule. Use a **Python Writer** to perform a destination operation and report its response to the engine. These are connector scripts; a Python transformer changes a message already being processed, and a response transformer changes an existing destination response.
 
-Scripts execute top-level statements. Assign `result`; the runtime does not call a `main()`, `read()`, `write()`, or other entry point for you. Imports, functions and classes are ordinary Python, and helper functions run only when you call them. All examples below use the bundled SDK and Python's standard library. They perform no external network calls.
+Write the script body directly and return its output. The runtime handles function execution internally; no `main()`, `read()`, or `write()` entry point is required. A `return` exits immediately, with normal Python `finally` behavior. Imports, functions and classes are ordinary Python, and helper functions run only when you call them. All examples below use the bundled SDK and Python's standard library. They perform no external network calls.
 
 The supported engine/editor baseline and qualification procedure are recorded in [validation](../validation.md). Connector editing is available in the Web Administrator; the Swing Administrator has placeholder panels. Select a prepared environment, save the channel and deploy it to use the saved script. See [environments and deployment](Environments-and-deployment.md) for profile readiness, node locality and deployment snapshots.
 
 ## Reader: one invocation per poll
 
-A Reader receives these names directly in its script globals:
+A Reader receives these context variables:
 
 | Name | Meaning |
 | --- | --- |
-| `result` | Initially `None`; assign one `Message`, a list of `Message` objects, or `None`. |
-| `poll` | Read-only poll metadata. A live poll contains `id`, a newly generated UUID string. |
+| `sourceMap` | Fresh writable invocation-local map. A live invocation starts with `pollId`, a newly generated UUID string. Its final entries supply defaults for every returned `Message`. |
 | `message` | Read-only connector metadata, described below. It is not a message body or Java object. |
 | `phase` | `"reader"`. |
 | `logger` | Bounded script logger with `debug`, `info`, `warning` and `error`. |
@@ -31,9 +30,11 @@ Live Reader `message` metadata has exactly these fields:
 | `connector_name` | Source connector name. |
 | `metadata_id` | Source connector metadata ID, represented as a Python integer. |
 
-There is no live `message_id`, `server_id`, `send_attempts` or `received_date` at this stage: no message has been admitted yet. `poll['id']` identifies this invocation; it is not an external record ID or a durable cursor. Synthetic **Test** uses `poll={'sample': True}` instead of a live poll UUID, and supplies sample metadata rather than the live fields above. Code that needs to work in both should use `poll.get('id')` and `message.get(...)` where appropriate.
+There is no live `message_id`, `server_id`, `send_attempts` or `received_date` at this stage: no message has been admitted yet. `sourceMap.get('pollId')` identifies this invocation; it is not an external record ID or a durable cursor. Synthetic **Test** starts with `sourceMap` containing `pollId: "sample"`, and supplies sample message metadata rather than the live fields above. There is no `poll` script global. Use `message.get(...)` for optional message metadata.
 
-Readers do not have `msg`, `tmp`, `payload`, `response`, `channelMap`, `connectorMap`, `sourceMap`, `responseMap` or a live `connectorMessage`. Put per-message initial source values in each returned `Message.source_map`. The configured message-count limit and enabled destination ID set are enforced internally; they are not additional public script globals. See [maps and values](Maps-and-values.md) for supported value types and shared-map concurrency.
+An ordinary assignment such as `x = value` is local to this invocation. To carry a value downstream on every emitted message, set `sourceMap["x"] = value` or call `sourceMap.put("x", value)`. Rebinding `sourceMap` only changes the local script binding; extraction still uses the original supplied map. Each returned `Message` inherits its final values, with `Message.source_map` entries overriding matching keys for that message, including `pollId`. A following Python script reads the resulting read-only `sourceMap["x"]`, and JavaScript reads `sourceMap.get("x")`. The Reader map starts fresh for every invocation and does not preserve values for later polls. Use `globalChannelMap` or `globalMap` to share supported values with later polls, subject to the existing node-local lifetime and snapshot/concurrency rules; these maps are not durable checkpoints or atomic counters.
+
+Readers do not have `msg`, `tmp`, `payload`, `response`, `channelMap`, `connectorMap`, `responseMap` or a live `connectorMessage`. Put common initial source values in the supplied writable `sourceMap`, and per-message overrides in each returned `Message.source_map`. The configured message-count limit and enabled destination ID set are enforced internally; they are not additional public script globals. See [maps and values](Maps-and-values.md) for supported value types and shared-map concurrency.
 
 ### Emit one message
 
@@ -43,10 +44,11 @@ Paste into a Python Reader:
 import json
 from oie_python import Message
 
+sourceMap.put("origin", "python-reader")
 body = json.dumps({"record_id": "example-001", "active": True})
-result = Message(
+return Message(
     body,
-    source_map={"origin": "python-reader", "record_id": "example-001"},
+    source_map={"record_id": "example-001"},
     destination_ids=None,
 )
 ```
@@ -56,10 +58,10 @@ Each live poll emits a new engine message. This fixed example deliberately repea
 To emit no work:
 
 ```python
-result = None
+return None
 ```
 
-`result = []` has the same effect. Leaving `result` at its initial value also emits nothing. A bare string, dictionary, generator, tuple of messages or bytes object is not a valid Reader result. Wrap each payload in `Message(...)` and use a list for multiple messages.
+`return []` has the same effect. Falling through also emits nothing. A bare string, dictionary, generator, tuple of messages or bytes object is not a valid Reader result. Wrap each payload in `Message(...)` and use a list for multiple messages.
 
 ### Message is Python's counterpart to RawMessage
 
@@ -77,8 +79,8 @@ Its constructor is `Message(payload, source_map=None, destination_ids=None)`. Th
 | Raw data | `Message.payload` |
 | Source map passed to `RawMessage` | `Message.source_map` |
 | Destination metadata ID collection | `Message.destination_ids` |
-| Return a collection from the Reader script | Assign a Python list to `result` |
-| Return nothing / no messages | Assign `None` or `[]` |
+| Return a collection from the Reader script | Return a Python list |
+| Return nothing / no messages | Return `None` or `[]`, or fall through |
 
 A JavaScript Reader example using the stock engine's wrapper:
 
@@ -93,7 +95,7 @@ The Python equivalent:
 ```python
 from oie_python import Message
 
-result = Message(
+return Message(
     '{"record_id":"example-001"}',
     source_map={"origin": "reader"},
     destination_ids=None,
@@ -109,7 +111,7 @@ The argument order differs: JavaScript's three-argument `RawMessage` takes **pay
 ```python
 from oie_python import Message
 
-result = [
+return [
     Message(""),
     Message(b"\x00\xff"),
 ]
@@ -121,9 +123,9 @@ Both entries are real messages. `Message('')` and `Message(b'')` also emit real 
 
 ### Initial source values and reserved keys
 
-`source_map` defaults to a fresh empty dictionary. It must be a dictionary with string keys and supported values. Nested dictionaries/lists, finite numbers, booleans, strings, bytes and `None` are supported subject to the common value limits; arbitrary Python or Java objects are not. See [maps and values](Maps-and-values.md).
+The supplied Reader `sourceMap` supports the ordinary map methods and Python dictionary operations described in [Maps and values](Maps-and-values.md). Its final entries are inherited by every returned message. A message's `source_map` defaults to a fresh empty dictionary and overrides those inherited entries. It must be a dictionary with string keys and supported values. Nested dictionaries/lists, finite numbers, booleans, strings, bytes and `None` are supported subject to the common value limits; arbitrary Python or Java objects are not. See [maps and values](Maps-and-values.md).
 
-The following keys belong to the engine and are rejected anywhere they appear as top-level `source_map` keys:
+The following keys belong to the engine and are rejected as top-level keys in either the supplied Reader `sourceMap` or a `Message.source_map`:
 
 - `destinationSet`
 - `batchId`
@@ -132,7 +134,7 @@ The following keys belong to the engine and are rejected anywhere they appear as
 - `reprocessed`
 - `replaced`
 
-Use an application key such as `external_record_id` for external identity. You cannot set the engine's destination selection by inserting `destinationSet` into the source map; use `destination_ids` instead. Downstream scripts receive the resulting `sourceMap` as read-only.
+Both maps are validated before dispatch, including the invocation map when returning `None` or `[]`. `None` is a supported source value. `pollId` is not reserved: either map can override it, and a per-message override takes precedence. Use an application key such as `external_record_id` for external identity. You cannot set the engine's destination selection by inserting `destinationSet` into the source map; use `destination_ids` instead. Downstream scripts receive the resulting `sourceMap` as read-only.
 
 ### All destinations, no destinations, or a subset
 
@@ -149,7 +151,7 @@ This subset example requires destination metadata ID `2` to exist and be enabled
 ```python
 from oie_python import Message
 
-result = Message("route this record", destination_ids=[2])
+return Message("route this record", destination_ids=[2])
 ```
 
 Selection does not force a destination past its own filter, queue or error handling. Save and redeploy after changing destination configuration. A draft or sample list of destination IDs is not proof that those IDs are enabled in the live deployment.
@@ -163,7 +165,7 @@ import json
 from oie_python import Message
 
 records = [{"id": "A"}, {"id": "B"}]
-result = [
+return [
     Message(json.dumps(record), source_map={"external_record_id": record["id"]})
     for record in records
 ]
@@ -195,7 +197,7 @@ A script exception or invalid result prevents this invocation's map changes from
 
 If admission fails partway through a list or batch, earlier admissions remain. The Reader reports how many messages were admitted and finalized, and how many returned envelopes completed. It does not replay the list automatically. A later scheduled poll is a new invocation, and a stop or interruption can leave part of the list unprocessed. Finalization is engine dispatch cleanup, not a guarantee of remote delivery success.
 
-Do not advance a durable external cursor merely because you assigned `result`, or treat a `globalChannelMap.put('cursor', ...)` as a transaction with engine message admission. Shared maps are node-local snapshots; concurrent writes to one key are not an atomic compare-and-set, and redeploy/restart lifetime rules still apply.
+Do not advance a durable external cursor merely because you constructed or returned a result, or treat a `globalChannelMap.put('cursor', ...)` as a transaction with engine message admission. Shared maps are node-local snapshots; concurrent writes to one key are not an atomic compare-and-set, and redeploy/restart lifetime rules still apply.
 
 For a real source, design acknowledgement and checkpointing against its delivery contract. Preserve stable external record IDs, make downstream operations idempotent, retain enough information to reconcile partial polls, and acknowledge only at the stage your application actually requires. There is no built-in per-result acknowledgement callback, external checkpoint transaction or exactly-once delivery guarantee. Imported module state is also not a durable cursor; modules can remain cached and workers can recycle.
 
@@ -206,7 +208,6 @@ A Writer receives:
 | Name | Meaning |
 | --- | --- |
 | `payload` | Outgoing engine content as `str`, or `None` when absent. |
-| `result` | Initially `None`; becomes the engine destination response. |
 | `message` | Read-only message/connector metadata. |
 | `phase` | `"writer"`. |
 | `logger` | Script logging helper. |
@@ -243,7 +244,7 @@ Import `Response` and `Status` from the SDK:
 ```python
 from oie_python import Response, Status
 
-result = Response(
+return Response(
     status=Status.SENT,
     data="accepted",
     status_message="Completed",
@@ -253,9 +254,9 @@ result = Response(
 
 This example constructs an acknowledgement only; returning SENT does not perform a remote write. In an actual connector, set SENT only after the required operation has succeeded.
 
-| `result` | Response status | Response data |
+| Returned value | Response status | Response data |
 | --- | --- | --- |
-| `None`, omitted or deleted | SENT | Empty string |
+| `None` (including fallthrough) | SENT | Empty string |
 | `"accepted"` | SENT | `"accepted"` |
 | `"ERROR"` | SENT | `"ERROR"` |
 | `Status.SENT` | SENT | Empty string |
@@ -269,7 +270,7 @@ A status member is handled before ordinary strings. Consequently `Status.ERROR` 
 import json
 from oie_python import Response, Status
 
-result = Response(
+return Response(
     status=Status.SENT,
     data=json.dumps({"accepted": True, "has_payload": payload is not None}),
     status_message="Local response example",
@@ -300,7 +301,7 @@ Python Writer:
 ```python
 from oie_python import Response, Status
 
-result = Response(
+return Response(
     status=Status.ERROR,
     data="negative-ack",
     status_message="Rejected",
@@ -308,7 +309,7 @@ result = Response(
 )
 ```
 
-JavaScript `return Status.SENT;` corresponds to Python `result = Status.SENT`. JavaScript `return 'accepted';` corresponds to Python `result = 'accepted'`. Python connector scripts assign `result` at top level; a top-level Python `return` is a syntax error. The SDK's `Response` is a Python result value, not the engine's live Java response wrapper, so Java getters/setters such as `setMessage()` and `getStatus()` do not apply.
+JavaScript `return Status.SENT;` corresponds to Python `return Status.SENT`. JavaScript `return 'accepted';` corresponds to Python `return 'accepted'`. Python connector scripts support ordinary `return` directly in the authored body. The SDK's `Response` is a Python result value, not the engine's live Java response wrapper, so Java getters/setters such as `setMessage()` and `getStatus()` do not apply.
 
 ### Validation, maps and response transformation
 
@@ -316,7 +317,7 @@ The Python adapter validates the response fields and all map operations before a
 
 The adapter passes the effective destination **Validate Response** setting to the engine response. This is the engine's data-type response validation, separate from Python syntax validation and the SDK's result type checks. For example, with the shipped HL7 v2 response validator enabled, a Writer's SENT response containing an error ACK can become ERROR. A bare `Status.SENT` has empty data; a validator requiring an ACK can reject it as an empty response. Returning SENT therefore does not guarantee the final stored status is SENT.
 
-After the send result is returned, the engine applies its response processing. The Python worker is released before response transformation, so a Python response transformer can run without holding the Writer's worker. Writer map updates are available to the following response transformer. In that later context, `msg`/`tmp` represent response documents and `response.status`, `response.status_message` and `response.error` modify the existing response. Its output comes from documents and response fields; assigning a new Writer `result = Response(...)` there does not replace the response. See [filters and transformers](Filters-and-transformers.md).
+After the send result is returned, the engine applies its response processing. The Python worker is released before response transformation, so a Python response transformer can run without holding the Writer's worker. Writer map updates are available to the following response transformer. In that later context, `msg`/`tmp` represent response documents and `response.status`, `response.status_message` and `response.error` modify the existing response. Its output comes from documents and response fields. See [filters and transformers](Filters-and-transformers.md).
 
 ### Immediate retries and the asynchronous destination queue
 
@@ -351,7 +352,7 @@ identity_parts = (
 )
 idempotency_key = ":".join(str(part) for part in identity_parts)
 logger.debug("Destination identity prepared")
-result = None
+return None
 ```
 
 Before using that string at a target, define its uniqueness scope, retention and retry behavior. For workflows creating a new engine message during manual reprocessing, use a stable application record/operation ID when business deduplication must span those new IDs. Metadata-based identity alone is not a deduplication service, and a shared-map check-then-write is not an atomic distributed lock.
@@ -364,15 +365,15 @@ Python Functions published as code templates are callable from supported filter/
 
 **Validate** compiles Python; it does not evaluate imports, execute your operation or verify a real endpoint. **Test** executes against synthetic maps and metadata and previews results; it does not admit live Reader messages or perform engine queue processing. Your Python code still executes, so any external side effects you add remain real. Use the local examples above for harmless contract exploration.
 
-Reader sample input can provide `globalMap`, `globalChannelMap`, `configurationMap` and `destinationIds`. A subset result requires its IDs in sample `destinationIds`. Writer sample input can provide a string-or-null `payload`, the shared maps, message maps and `destinationIdMap` for response-map name lookup. Samples do not provide the entire live metadata set. Test previews do not substitute for the deployed queue, data-type response validation, batch splitting or storage behavior. See [editor testing and troubleshooting](Editor-testing-and-troubleshooting.md).
+Reader sample input can provide `sourceMap`, `globalMap`, `globalChannelMap`, `configurationMap` and `destinationIds`. The synthetic `sourceMap` starts with `pollId: "sample"` unless a non-null `pollId` is supplied. A subset result requires its IDs in sample `destinationIds`. Writer sample input can provide a string-or-null `payload`, the shared maps, message maps and `destinationIdMap` for response-map name lookup. Samples do not provide the entire live metadata set. Test previews do not substitute for the deployed queue, data-type response validation, batch splitting or storage behavior. See [editor testing and troubleshooting](Editor-testing-and-troubleshooting.md).
 
 | Symptom | Check |
 | --- | --- |
-| Reader emits nothing | `None`/`[]`, scheduling, source state and script logs; assigning a local helper variable does not set `result`. |
+| Reader emits nothing | `None`/`[]`, scheduling, source state and script logs; constructing a `Message` in a local variable does not return it. |
 | Reader fails before admitting anything | Complete list shape, source map values/reserved keys, destination IDs, batch/binary combination and operator limits. |
 | Reader logs partial completion | Compare admitted/finalized counts with envelope count; reconcile earlier admissions before replaying external records. |
-| `NameError` for a map | Reader has no message maps; use shared maps or `Message.source_map`. Writer has no `msg`/`tmp`. |
-| Read-only or unsupported-value error | `sourceMap`/`configurationMap` access, arbitrary engine objects and common map value restrictions. |
+| `NameError` for a map | Reader has `sourceMap` and shared maps, but no `channelMap`, `connectorMap`, or `responseMap`. Writer has no `msg`/`tmp`. |
+| Read-only or unsupported-value error | Downstream `sourceMap` or `configurationMap` writes, arbitrary engine objects and common map value restrictions. |
 | Writer says SENT but destination becomes ERROR | Response data-type validation, response transformer, empty ACK, queue settings and stored error details. |
 | Writer unexpectedly succeeds with `ERROR` data | Use `Status.ERROR` or `Response(status=Status.ERROR)`, rather than the plain string `'ERROR'`. |
 | Writer runs more than once | Immediate retry count, asynchronous queue, recovery and manual reprocessing. |

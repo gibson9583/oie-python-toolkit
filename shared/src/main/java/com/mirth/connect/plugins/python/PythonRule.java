@@ -23,7 +23,7 @@ public class PythonRule extends Rule implements PythonScriptConfiguration {
     private int contractVersion;
 
     public PythonRule() {
-        pythonScript = "result = True";
+        pythonScript = "return True";
         environmentProfileId = PythonContract.DEFAULT_PROFILE_ID;
         environmentNameHint = PythonContract.DEFAULT_PROFILE_NAME;
         timeoutMillis = PythonContract.DEFAULT_TIMEOUT_MILLIS;

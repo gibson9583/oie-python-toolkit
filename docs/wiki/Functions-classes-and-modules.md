@@ -4,7 +4,7 @@
 
 ## Can a code template contain Python classes?
 
-**Yes.** A Python Function code template can contain imports, classes, dataclasses, helper functions, and normal top-level Python statements. Its externally callable interface is still a JavaScript function. The caller passes positional JSON-compatible arguments; the script assigns its JSON-compatible return value to `result`.
+**Yes.** A Python Function code template can contain imports, classes, dataclasses, helper functions, and ordinary Python statements. Its externally callable interface is still a JavaScript function. The caller passes positional JSON-compatible arguments; the script returns a JSON-compatible value.
 
 The class itself is not exported to JavaScript or registered as a Python module. You cannot return a class instance across the boundary, use `new MyPythonClass()` in JavaScript, or import that code template from another Python script. Convert instances to dictionaries/lists/scalars for return values. Use an installed Python package when several Python scripts need the same class.
 
@@ -47,7 +47,7 @@ if not isinstance(raw.get("patient_id"), str) or not isinstance(raw.get("name"),
     raise ValueError("patient_id and name must be strings")
 
 patient = Patient(raw["patient_id"], raw["name"]).normalized()
-result = asdict(patient)
+return asdict(patient)
 ```
 
 Call from a JavaScript transformer with JSON input:
@@ -60,7 +60,7 @@ For this example, the returned object intentionally contains only `patient_id` a
 
 The function does not receive a `msg` or `tmp` global. Editing `arguments[0]` alone does not edit the calling JavaScript document; return the value and explicitly apply it. Writable map changes are returned independently and applied after the function result and all map changes validate.
 
-The worker registers the temporary script module while it executes, so ordinary dataclasses and module-aware class definitions can resolve their module. Script globals are fresh on each invocation. The definitions in this example are created again on each call.
+The worker registers the temporary script module while it executes, so ordinary dataclasses and module-aware class definitions can resolve their module. Context bindings and script-local definitions are fresh on each invocation. The definitions in this example are created again on each call.
 
 ## Arguments and return values
 
@@ -72,7 +72,7 @@ if len(arguments) != 1 or not isinstance(arguments[0], dict):
     raise ValueError("format_label expects an options object")
 options = arguments[0]
 prefix = str(options.get("prefix", "Patient"))
-result = prefix + ": " + str(options["patient_id"])
+return prefix + ": " + str(options["patient_id"])
 ```
 
 ```javascript
@@ -90,14 +90,14 @@ msg = new XML(normalize_xml(msg.toXMLString()));
 
 This is a caller-side conversion recipe, not an automatic XML-aware template. The `normalize_xml` template must exist and return valid XML text. For direct XML transformations and namespace handling, use the [native transformer guide](Filters-and-transformers.md).
 
-`result` initially equals `None`; leaving it unchanged returns JavaScript `null`. A top-level `return` is invalid Python. If you define a helper, call it explicitly:
+Return `None` for JavaScript `null`; falling through also returns null. Ordinary `return` exits the script immediately, with normal Python `finally` behavior. If you define a helper, call it explicitly:
 
 ```python
 def normalize(value):
     return value.strip().upper()
 
 
-result = normalize(arguments[0])
+return normalize(arguments[0])
 ```
 
 ## Calling contexts and maps
@@ -112,7 +112,7 @@ Python Functions are available from JavaScript in these selected engine contexts
 
 They are not available from Python Reader/Writer scripts, JavaScript connector bodies, global/channel lifecycle scripts, or as direct callable globals in native Python scripts. Other selected template contexts do not create additional Python bindings; no selected contexts means no binding.
 
-A call receives `arguments`, `result`, `message`, `phase`, `logger`, all three shared maps, and the four calling-message maps. See the [context matrix](Contexts-and-message-flow.md). It does not receive the response-transformer's `response` object; pass data explicitly if needed. A call from a JavaScript filter reports the combined source/destination **transformer** phase, whereas a native Python filter reports a filter phase.
+A call receives `arguments`, `message`, `phase`, `logger`, all three shared maps, and the four calling-message maps. See the [context matrix](Contexts-and-message-flow.md). It does not receive the response-transformer's `response` object; pass data explicitly if needed. A call from a JavaScript filter reports the combined source/destination **transformer** phase, whereas a native Python filter reports a filter phase.
 
 An exception or invalid return value fails the calling JavaScript operation. The failed invocation's staged map changes are not applied. External I/O already performed remains external; a JavaScript catch cannot undo it. Earlier successful calls or steps are not rolled back as a group.
 
@@ -143,7 +143,7 @@ Python Function body using the same class:
 ```python
 from oie_channel_helpers import Patient
 
-result = Patient.from_mapping(arguments[0]).as_dict()
+return Patient.from_mapping(arguments[0]).as_dict()
 ```
 
 Native JSON filter body using the same class:
@@ -152,7 +152,7 @@ Native JSON filter body using the same class:
 from oie_channel_helpers import Patient
 
 patient = Patient.from_mapping(msg)
-result = bool(patient.name)
+return bool(patient.name)
 ```
 
 All three snippets assume string `patient_id` and `name` fields; missing or incorrectly typed fields raise an error, rather than being treated as a false predicate. You can use the same import in Reader and Writer code, but those contexts construct their own input data from a polled source or serialized `payload`.

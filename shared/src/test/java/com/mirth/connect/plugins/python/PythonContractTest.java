@@ -130,7 +130,7 @@ class PythonContractTest {
         assertEquals(writer, xstream.fromXML(xstream.toXML(writer)));
         assertEquals(writer, writer.clone());
         PythonReceiverProperties reader = new PythonReceiverProperties();
-        reader.setPythonScript("result = None  # saved reader\n");
+        reader.setPythonScript("return None  # saved reader\n");
         assertEquals(reader, xstream.fromXML(xstream.toXML(reader)));
     }
 }

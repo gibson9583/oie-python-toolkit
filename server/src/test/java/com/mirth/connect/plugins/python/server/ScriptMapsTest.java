@@ -11,6 +11,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
 
 class ScriptMapsTest {
+    @Test void sampleReaderSourceMapIsSeededWithoutBecomingASharedMap() {
+        Map<String, Object> source = new HashMap<>(Map.of("origin", "sample-origin"));
+        SampleContext context = SampleContext.build("reader", Map.of("sourceMap", source), 10);
+        assertFalse(context.context.containsKey("poll"));
+        assertEquals(Map.of("pollId", "sample", "origin", "sample-origin"), context.context.get("sourceMap"));
+        assertFalse(((Map<?, ?>) context.context.get("maps")).containsKey(ScriptMaps.SOURCE));
+        assertEquals(Map.of("origin", "sample-origin"), source);
+        assertThrows(Wire.ValueException.class,
+                () -> SampleContext.build("reader", Map.of("sourceMap", Map.of("batchId", "reserved")), 10));
+    }
+
     @Test void responseDestinationsUseTheStockMetadataIdKeyFormat() {
         ScriptMaps maps = new ScriptMaps().add(ScriptMaps.RESPONSE, Map.of("d1", "response"), true)
                 .responseDestinations(Map.of("Destination:雪", 1));

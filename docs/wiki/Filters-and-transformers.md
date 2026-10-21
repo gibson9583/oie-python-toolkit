@@ -4,14 +4,14 @@ Use a **Python rule** to decide whether processing continues, and a **Python ste
 
 ## Native Python filters
 
-Add a Python rule to a source or destination filter. A new rule starts with `result = True`. Your script must finish with `result` holding exactly a Python `bool`:
+Add a Python rule to a source or destination filter. A new rule starts with `return True`. An empty script or fallthrough accepts as `True`. To choose explicitly, return a Python `bool`:
 
 ```python
 # Assumption: JSON object msg; active is a JSON boolean, cancelled is optional.
-result = msg.get("active") is True and not msg.get("cancelled", False)
+return msg.get("active") is True and not msg.get("cancelled", False)
 ```
 
-`True` accepts this rule; `False` rejects this rule. The surrounding stock AND/OR expression decides overall acceptance. `1`, `0`, `"true"`, `[]`, `None`, or an omitted result are contract errors, not alternative booleans. `return True` at top level is invalid Python. If a helper returns the decision, assign it explicitly:
+`True` accepts this rule; `False` rejects this rule. The surrounding stock AND/OR expression decides overall acceptance. Explicit returns of `1`, `0`, `"true"`, `[]`, or `None` are contract errors, as is a bare `return`. Reaching the end without executing a return accepts as `True`. Use `return` to exit with the decision. If a helper computes it, return its value:
 
 ```python
 # Assumption: JSON object msg; patient_id is a string when present.
@@ -19,7 +19,7 @@ def has_patient(document):
     value = document.get("patient_id")
     return isinstance(value, str) and bool(value.strip())
 
-result = has_patient(msg)
+return has_patient(msg)
 ```
 
 A false overall source filter prevents destination processing. A false destination filter skips that destination. An exception or invalid result is a filter error rather than a normal rejection. There is no Python response-filter rule.
@@ -33,7 +33,7 @@ Never place required audit writes or cleanup only in a rule that may be skipped.
 ```python
 # Assumption: JSON object msg with observations: list of objects.
 # Accept only when at least one observation explicitly marks itself critical.
-result = any(item.get("critical") is True for item in msg["observations"])
+return any(item.get("critical") is True for item in msg["observations"])
 ```
 
 ### False results still commit valid edits
@@ -44,14 +44,14 @@ The boolean decides filtering, not whether edits commit. This complete source/de
 patient_id = msg.get("patient_id", "").strip()
 msg["patient_id"] = patient_id
 channelMap.put("patient_id_present", bool(patient_id))
-result = bool(patient_id)
+return bool(patient_id)
 ```
 
 When the ID is empty, this rule returns `False` and retains its normalized document and map change. An invalid document or invalid boolean rejects the whole invocation instead. Do not rely on rejected messages proceeding to a later transformer to perform required work.
 
 ## Native Python transformer steps
 
-Transformer output comes from `msg` and optional `tmp`. An empty step is a no-op. There is no automatic `output` alias, and `result` is not a transformer output variable.
+Transformer output comes from `msg` and optional `tmp`. An empty step is a no-op. There is no automatic `output` alias or returned transformer value.
 
 For JSON, mutate in place or assign a supported replacement:
 
@@ -117,7 +117,7 @@ document["validated"] = True
 msg = json.dumps(document, ensure_ascii=False, allow_nan=False)
 ```
 
-Native JSON datatypes instead already provide a dict/list; do not call `json.loads` on those. A filter for RAW content still must assign a boolean: `result = "required-token" in msg` is valid.
+Native JSON datatypes instead already provide a dict/list; do not call `json.loads` on those. An explicit filter return for RAW content must also be boolean: `return "required-token" in msg` is valid.
 
 ## XML is text across the boundary
 
@@ -227,7 +227,7 @@ else:
 msg["checked_by"] = "python-response-transformer"
 ```
 
-Only `SENT`, `ERROR`, and `QUEUED` are supported assigned response statuses. `status_message` and `error` take text or `None`. The helper has no `data` field; change body content through documents. Assigning `result = Response(...)` here does not create a response. An engine error without a JSON body does not satisfy this example's assumptions; use response datatype/settings and guards appropriate to real error responses.
+Only `SENT`, `ERROR`, and `QUEUED` are supported assigned response statuses. `status_message` and `error` take text or `None`. The helper has no `data` field; change body content through documents. An engine error without a JSON body does not satisfy this example's assumptions; use response datatype/settings and guards appropriate to real error responses.
 
 ## Calling a Python Function from JavaScript
 
@@ -235,7 +235,7 @@ Use a Python Function when JavaScript should own the document assignment and Pyt
 
 ```python
 patient = arguments[0]
-result = {"name": patient["name"].strip()}
+return {"name": patient["name"].strip()}
 ```
 
 Configure the template's JavaScript name as `normalize_patient`, enable its library and source/destination transformer context for the channel, and deploy. A complete JavaScript JSON transformer step can then use:
@@ -254,7 +254,8 @@ The function receives JSON arguments, a JSON result contract, and calling maps. 
 | Rule returns valid `True` | Rule accepts; overall expression still governs | This invocation's valid changes commit |
 | Rule returns valid `False` | Rule rejects; expression may still accept via OR | This invocation's valid changes commit |
 | Rule is short-circuited/disabled | No invocation | No edits or logs from that rule |
-| Rule returns `1`, string, `None`, or no result | Filter error | No staged changes from this invocation |
+| Rule has an empty body or falls through | Rule accepts as `True`; overall expression still governs | This invocation's valid changes commit |
+| Rule returns `1`, string, `None`, or a bare `return` | Filter error | No staged changes from this invocation |
 | Script raises an exception | Current script fails | No staged document/map/response changes from this invocation; logs/external I/O persist |
 | Invalid `msg`, `tmp`, response field, or map delta | Contract error with diagnostic | All this invocation's output validated before any staged edits apply |
 | `msg` valid, `tmp` invalid | Contract error | Neither document nor staged maps apply |

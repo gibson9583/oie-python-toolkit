@@ -31,7 +31,7 @@ public final class Sdk {
     public static final String VERSION = "0.1.0";
     public static final int PROTOCOL_VERSION = 1;
     public static final String DISTRIBUTION = "oie-python";
-    static final String[] MODULES = { "__init__.py", "_types.py", "_result_types.py", "_codec.py", "_maps.py", "_context.py", "worker.py", "validate.py" };
+    static final String[] MODULES = { "__init__.py", "_types.py", "_result_types.py", "_codec.py", "_maps.py", "_context.py", "_script.py", "worker.py", "validate.py" };
     private static final java.time.LocalDateTime FIXED_TIME = java.time.LocalDateTime.of(1980, 1, 2, 0, 0);
 
     private final Map<String, byte[]> sources;

@@ -90,7 +90,7 @@ def main():
             "class Payload:\n"
             "    value: str\n"
             "connectorMap['writer'] = 'A'\n"
-            "result = 'A|' + Payload(payload).value\n"
+            "return 'A|' + Payload(payload).value\n"
         )
         test = dict(script, requestId=str(uuid.uuid4()), role='writer',
                     pythonScript=dataclass_writer, sampleContext={'payload': 'sample'})
@@ -159,7 +159,7 @@ def main():
         while job['state'] not in ('READY','FAILED','CANCELLED','INTERRUPTED','SUPERSEDED') and time.monotonic()<deadline:
             time.sleep(.25); job=api.call(py+'/jobs/'+job['id'])
         write(evidence/'changed-lock-job.json',job); assert job['state']=='READY',job
-        queue_b=ET.fromstring(channel_xml(queue_id,queue_port,profile['id'],'QB',writer_source="from oie_python import Response\nfrom importlib.metadata import version\nresult = Response(data='QB|' + version('marshmallow') + '|' + payload)\n"))
+        queue_b=ET.fromstring(channel_xml(queue_id,queue_port,profile['id'],'QB',writer_source="from oie_python import Response\nfrom importlib.metadata import version\nreturn Response(data='QB|' + version('marshmallow') + '|' + payload)\n"))
         queue_b.find('name').text=ET.fromstring(queue_saved).find('name').text
         queue_props=queue_b.find('destinationConnectors/connector/properties/destinationConnectorProperties')
         queue_props.find('queueEnabled').text='true'; queue_props.find('sendFirst').text='false'; queue_props.find('retryIntervalMillis').text='1000'
@@ -192,7 +192,7 @@ def main():
         destinations=connector_messages(second)
         assert set(destinations)=={0,1} and destinations[1]['status']=='SENT',second
         assert 'R|AP8=|destination|response' in json.dumps(second),second
-        for label,code,timeout in [('bad-return',"connectorMap['partial'] = 'must-not-apply'\nresult = {'invalid':'response'}\n",30000),
+        for label,code,timeout in [('bad-return',"connectorMap['partial'] = 'must-not-apply'\nreturn {'invalid':'response'}\n",30000),
                 ('timeout',"import time\ntime.sleep(60)\n",300)]:
             bad_id=str(uuid.uuid4()); bad_port=port(); _,bad_source,_=create_channel(channel_xml(bad_id,bad_port,profile['id'],label,writer_source=code,timeout=timeout),bad_port)
             started=time.monotonic(); bad_source.call('/python/','POST','sample','text/plain'); elapsed=time.monotonic()-started

@@ -88,15 +88,16 @@ function ScriptPanel({ element, properties, onChange, role: explicitRole, channe
         {isStep&&!inferred.role&&!isRule&&<div className="flex flex-wrap gap-3"><label className="field">Validation role<select aria-label="Validation role" value={role} onChange={e=>{generation.current.invalidate();setChosenRole(e.target.value);setResult(null);}}><option value="">Select where this step runs</option><option value="source-transformer">Source transformer</option><option value="destination-transformer">Destination transformer</option><option value="response-transformer">Response transformer</option></select></label>{role&&role!=='source-transformer'&&role!=='source-filter'&&<label className="field">Validation connector<select aria-label="Validation connector" value={chosenConnector} onChange={e=>{generation.current.invalidate();setChosenConnector(e.target.value);setResult(null);}}><option value="">Select a destination</option>{destinations.map(v=><option key={v.metaDataId} value={v.metaDataId}>{v.name||`Destination ${v.metaDataId}`}</option>)}</select></label>}</div>}
         <PythonEditor value={subject.pythonScript||''} onChange={v=>change('pythonScript',v)} role={role} channelId={activeChannel?.id} profile={selected} catalog={profiles}/>
         <p className="text-text-dim" style={{maxWidth:"72ch"}}>
-            {isRule ? <>Assign <code>result</code> to exactly <code>True</code> or <code>False</code>. Use <code>not</code> to negate a predicate. Stock AND/OR order and short circuit apply. Documents and maps match transformer steps. Python rules must be outside Iterator rules.</> : isStep ? <>
+            {isRule ? <>Return exactly <code>True</code> or <code>False</code>; falling through accepts the message. Bare <code>return</code> and <code>return None</code> are invalid. Use <code>not</code> to negate a predicate. Stock AND/OR order and short circuit apply. Documents and maps match transformer steps. Python rules must be outside Iterator rules.</> : isStep ? <>
                 Write Python statements using <code>msg</code> and, when a template exists, <code>tmp</code> directly.
                 {' '}XML is engine internal XML; replaced roots can invalidate earlier JavaScript aliases.
                 {' '}Python steps must be outside Iterator steps.
             </> : role==='writer' ? <>
-                Use <code>payload</code> directly and assign <code>result</code> to None, a string, a Status, or a Response.
+                Use <code>payload</code> directly and return None, a string, a Status, or a Response.
                 {' '}Engine retries apply. Use target-supported idempotency for external writes.
             </> : <>
-                Use <code>poll</code> for polling metadata and assign <code>result</code> to None, a Message, or a list of Message objects.
+                Use writable <code>sourceMap</code> for invocation metadata, including <code>sourceMap.get('pollId')</code>, and return None, a Message, or a list of Message objects.
+                {' '}Its entries become defaults for every returned message; <code>Message.source_map</code> entries override them per message.
                 {' '}External acknowledgments are the script’s responsibility.
             </>}
             {' '}<code>logger</code> and <code>print()</code> write captured script output.
@@ -188,7 +189,7 @@ export function register(_host, context){
     registerPythonEditorLanguage(platform, context);
     platform.registerSettingsPanel({id:'python-runtime',label:'Script Environments',order:65,task:permissions.view,component:EnvironmentSettings});
     registerPythonCodeTemplate();
-    platform.registerRuleType(RULE,{label:'Python',create:()=>({__type:RULE,name:'Python',enabled:true,operator:'AND',...defaults(),pythonScript:'result = True'}),component:ScriptPanel});
+    platform.registerRuleType(RULE,{label:'Python',create:()=>({__type:RULE,name:'Python',enabled:true,operator:'AND',...defaults(),pythonScript:'return True'}),component:ScriptPanel});
     platform.registerStepType(STEP,{label:'Python',create:()=>({__type:STEP,name:'Python',enabled:true,...defaults()}),component:ScriptPanel});
     for(const [name,mode,role,cls]of [['Python Reader','SOURCE','reader','PythonReceiverProperties'],['Python Writer','DESTINATION','writer','PythonDispatcherProperties']])platform.registerConnectorPanel(name,mode,{
         defaults:version=>({'@class':`com.mirth.connect.connectors.python.${cls}`,'@version':version,pluginProperties:{'@class':'set'},...defaults(role),...(role==='reader'?{pollConnectorProperties:defaultPollProperties(version),sourceConnectorProperties:defaultSourceProperties(version)}:{destinationConnectorProperties:defaultDestinationProperties(version)})}),

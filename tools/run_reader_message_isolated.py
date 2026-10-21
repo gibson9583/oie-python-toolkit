@@ -20,6 +20,7 @@ from run_live_engine_integration import connector_messages
 
 def cases():
     metadata = "source_map={'origin':'reader', 'nested':{'id':42}, 'bytes':b'\\x00\\xff', 'expected':%r}"
+    defaults = "assert 'poll' not in globals()\nassert isinstance(sourceMap['pollId'], str)\nsourceMap.update({'origin':'reader','nested':{'id':42},'bytes':b'\\x00\\xff'})\n"
     messages = ["Message('', " + metadata % '' + ")",
                 "Message(b'', " + metadata % '' + ", destination_ids=[])",
                 "Message(b'\\x00\\xff', " + metadata % 'AP8=' + ", destination_ids=[2])",
@@ -36,6 +37,10 @@ def cases():
         dict(name='reserved-map', expression="[Message('first'), Message('bad', source_map={'batchId':'owned'})]", routes=[], error='reserved engine key'),
         dict(name='disabled-destination', expression="[Message('first'), Message('bad', destination_ids=[3])]", routes=[], error='unknown or disabled'),
         dict(name='invalid-map-value', expression="[Message('first'), Message('bad', source_map={'java':object()})]", routes=[], error='unsupported'),
+        dict(name='source-defaults', prefix=defaults, expression="[Message('one'), Message('two')]", routes=[{0, 1, 2}, {0, 1, 2}], raw=['one', 'two']),
+        dict(name='source-override', prefix=defaults + "sourceMap['origin'] = 'default'\n", expression="Message('one', source_map={'origin':'reader'})", routes=[{0, 1, 2}], raw=['one']),
+        dict(name='source-defaults-batch', prefix=defaults, expression="Message('one\\ntwo\\n', destination_ids=[2])", routes=[{0, 2}, {0, 2}], raw=['one', 'two'], batch=True),
+        dict(name='invalid-default-none', prefix="sourceMap['batchId'] = 'owned'\n", expression='None', routes=[], error='reserved engine key'),
     ]
 
 
@@ -51,7 +56,7 @@ def execute_case(api, child, profile, evidence, case):
     model.find('name').text = 'Py Reader ' + case['name']
     model.find('nextMetaDataId').text = '4'
     model.find('sourceConnector/properties/pollConnectorProperties/pollingFrequency').text = '3600000'
-    source = "from oie_python import Message\nresult = " + case['expression'] + "\nprint('reader-case-" + channel_id + "')\n"
+    source = "from oie_python import Message\n" + case.get('prefix', '') + "print('reader-case-" + channel_id + "')\nreturn " + case['expression'] + "\n"
     model.find('sourceConnector/properties/pythonScript').text = source
     destinations = model.find('destinationConnectors')
     first = destinations.find('connector')
@@ -69,11 +74,12 @@ from oie_python import Response
 assert sourceMap['origin'] == 'reader'
 assert sourceMap['nested']['id'] == 42
 assert sourceMap['bytes'] == b'\x00\xff'
+assert isinstance(sourceMap['pollId'], str)
 if sourceMap.get('expected') is not None:
     assert payload == sourceMap['expected'], repr(payload)
 else:
     assert payload in ('one', 'two'), repr(payload)
-result = Response(data=payload)
+return Response(data=payload)
 """
     if case.get('batch'):
         model.find('sourceConnector/properties/sourceConnectorProperties/processBatch').text = 'true'

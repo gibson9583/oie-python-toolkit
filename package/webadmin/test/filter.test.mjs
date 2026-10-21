@@ -10,11 +10,17 @@ test('source and destination filter routes use dedicated roles', () => {
     assert.equal(routeValidationContext('/channels/id/response/3').role,'response-transformer');
 });
 test('native filter preview returns exact predicate; iterator rules rejected', () => {
-    const script = generateScript({__type:RULE,...defaults(),pythonScript:'result = True'});
+    const script = generateScript({__type:RULE,...defaults(),pythonScript:'return True'});
     assert.match(script,/^return \(function/);
     assert.match(script,/executeFilter\(/);
     assert.match(script,/return __r.isAccepted\(\);/);
     assert.equal(placementError({role:'source-filter',elementPath:[0]}),'');
     assert.match(placementError({role:'source-filter',elementPath:[0,0]}),/Iterator rules/);
     assert.match(placementError({role:'destination-filter',elementPath:[]}),/Select this Python rule/);
+});
+
+test('new Reader and Writer defaults use native returns; transformer defaults remain statements', () => {
+    assert.equal(defaults('reader').pythonScript, 'return None\n');
+    assert.equal(defaults('writer').pythonScript, 'return None\n');
+    assert.equal(defaults().pythonScript, '');
 });

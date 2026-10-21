@@ -17,33 +17,33 @@ from run_code_template_isolated import ROOT, run as run_isolated
 
 
 def cases():
-    yield dict(name='response-fields', source="result = Response(Status.SENT, 'ack', 'brief', 'details')", status='SENT', data='ack', brief='brief', error='details')
-    yield dict(name='response-error', source="result = Response('ERROR', 'negative-ack', 'failed', 'remote failure')", status='ERROR', data='negative-ack', brief='failed', error='remote failure')
-    yield dict(name='literal-error', source="result = 'ERROR'", status='SENT', data='ERROR', brief='', error='')
-    yield dict(name='none', source='result = None', status='SENT', data='', brief='', error='')
+    yield dict(name='response-fields', source="return Response(Status.SENT, 'ack', 'brief', 'details')", status='SENT', data='ack', brief='brief', error='details')
+    yield dict(name='response-error', source="return Response('ERROR', 'negative-ack', 'failed', 'remote failure')", status='ERROR', data='negative-ack', brief='failed', error='remote failure')
+    yield dict(name='literal-error', source="return 'ERROR'", status='SENT', data='ERROR', brief='', error='')
+    yield dict(name='none', source='return None', status='SENT', data='', brief='', error='')
     for status in ('SENT', 'ERROR'):
-        yield dict(name='status-' + status.lower(), source='result = Status.' + status, status=status, data='', brief='', error='')
-    yield dict(name='queue-disabled', source='result = Status.QUEUED', status='ERROR', data='', brief="Python returned QUEUED, but this destination's queue is disabled.", error="Python returned QUEUED, but this destination's queue is disabled.")
-    yield dict(name='invalid-status', source="connectorMap['mustNotApply'] = 'changed'\nresult = Response('FILTERED')", status='ERROR', data='', diagnostic='Response.status', rollback=True)
+        yield dict(name='status-' + status.lower(), source='return Status.' + status, status=status, data='', brief='', error='')
+    yield dict(name='queue-disabled', source='return Status.QUEUED', status='ERROR', data='', brief="Python returned QUEUED, but this destination's queue is disabled.", error="Python returned QUEUED, but this destination's queue is disabled.")
+    yield dict(name='invalid-status', source="connectorMap['mustNotApply'] = 'changed'\nreturn Response('FILTERED')", status='ERROR', data='', diagnostic='Response.status', rollback=True)
     yield dict(name='exception', source="raise RuntimeError('writer-response-test')", status='ERROR', data='', diagnostic='writer-response-test')
-    retry = "attempt = connectorMap.get('attempt', 0) + 1\nconnectorMap['attempt'] = attempt\nresult = Response(Status.%s if attempt == 1 else Status.SENT, str(attempt), 'attempt-' + str(attempt))"
+    retry = "attempt = connectorMap.get('attempt', 0) + 1\nconnectorMap['attempt'] = attempt\nreturn Response(Status.%s if attempt == 1 else Status.SENT, str(attempt), 'attempt-' + str(attempt))"
     yield dict(name='immediate-retry', source=retry % 'ERROR', retries=1, status='SENT', data='2', brief='attempt-2', error='', attempts=2)
-    yield dict(name='retry-exhaustion', source="attempt = connectorMap.get('attempt', 0) + 1\nconnectorMap['attempt'] = attempt\nresult = Response(Status.ERROR, str(attempt), 'exhausted', 'remote failure')", retries=2, status='ERROR', data='3', brief='exhausted', error='remote failure', attempts=3)
+    yield dict(name='retry-exhaustion', source="attempt = connectorMap.get('attempt', 0) + 1\nconnectorMap['attempt'] = attempt\nreturn Response(Status.ERROR, str(attempt), 'exhausted', 'remote failure')", retries=2, status='ERROR', data='3', brief='exhausted', error='remote failure', attempts=3)
     yield dict(name='queued-retry', source=retry % 'QUEUED', queue=True, retry_interval=5000, intermediate_queued=True, status='SENT', data='2', brief='attempt-2', error='', attempts=2)
-    yield dict(name='queue-first', source="result = Response(Status.SENT, 'queued-delivery', 'complete')", queue=True, send_first=False, status='SENT', data='queued-delivery', brief='complete', error='')
+    yield dict(name='queue-first', source="return Response(Status.SENT, 'queued-delivery', 'complete')", queue=True, send_first=False, status='SENT', data='queued-delivery', brief='complete', error='')
     # The stock HL7 validator consumes real Writer return data. These are valid
     # ER7 ACK/NACK messages, not fabricated engine/API responses.
     ack = 'MSH|^~\\&|REMOTE|LAB|OIE|LAB|20261021000000||ACK|ACK1|P|2.5\rMSA|AA|CONTROL1\r'
     nack = ack.replace('MSA|AA|CONTROL1', 'MSA|AE|CONTROL1|Remote rejection')
-    yield dict(name='validation-ack', source='result = Response(Status.SENT, %r, "accepted")' % ack,
+    yield dict(name='validation-ack', source='return Response(Status.SENT, %r, "accepted")' % ack,
                hl7=True, validate=True, status='SENT', data=ack, brief='accepted', error='')
-    yield dict(name='validation-nack', source='result = Response(Status.SENT, %r)' % nack,
+    yield dict(name='validation-nack', source='return Response(Status.SENT, %r)' % nack,
                hl7=True, validate=True, status='ERROR', data=nack, diagnostic='NACK sent from receiver. (Error)\nRemote rejection')
-    yield dict(name='validation-disabled-nack', source='result = Response(Status.SENT, %r)' % nack,
+    yield dict(name='validation-disabled-nack', source='return Response(Status.SENT, %r)' % nack,
                hl7=True, validate=False, status='SENT', data=nack, brief='', error='')
-    yield dict(name='validation-status-sent', source='result = Status.SENT', hl7=True, validate=True,
+    yield dict(name='validation-status-sent', source='return Status.SENT', hl7=True, validate=True,
                status='ERROR', data='', diagnostic='Empty or blank response received.')
-    yield dict(name='validation-status-error', source='result = Status.ERROR', hl7=True, validate=True,
+    yield dict(name='validation-status-error', source='return Status.ERROR', hl7=True, validate=True,
                status='ERROR', data='', brief='', error='')
 
 
@@ -101,6 +101,20 @@ def scenario(api, child, profile, ingress, evidence, receipt):
         folder.mkdir()
         channel_id = str(uuid.uuid4())
         source = 'from oie_python import Response, Status\n' + case['source'] + '\n'
+        queued_release = folder / 'release-queued-retry' if case.get('intermediate_queued') else None
+        if queued_release is not None:
+            # The first queue send can happen immediately after the initial
+            # send. Hold its completion until the persisted first response is
+            # observed, rather than racing a transient database state.
+            gate = ("if attempt > 1:\n"
+                    "    import time\n"
+                    "    from pathlib import Path\n"
+                    "    deadline = time.monotonic() + 20\n"
+                    "    while not Path(" + repr(str(queued_release)) + ").exists():\n"
+                    "        if time.monotonic() >= deadline:\n"
+                    "            raise RuntimeError('Owned queued-response observation timed out')\n"
+                    "        time.sleep(0.02)\n")
+            source = source.replace('return Response(', gate + 'return Response(', 1)
         model = ET.fromstring(channel_xml(channel_id, ingress, profile['id'], marker=case['name'], writer_source=source))
         model.find('name').text = 'Py Writer ' + case['name']
         for path in ('sourceConnector/transformer/elements', 'destinationConnectors/connector/transformer/elements', 'destinationConnectors/connector/responseTransformer/elements'):
@@ -134,6 +148,7 @@ def scenario(api, child, profile, ingress, evidence, receipt):
                     write(folder / 'intermediate-queued-response.json', queued_fields)
                     assert queued_fields == {'status': 'QUEUED', 'message': '1', 'statusMessage': 'attempt-1', 'error': ''}, queued_fields
                     queued_observed = True
+                    queued_release.write_text('Persisted QUEUED response verified\n')
                 if destination is not None and destination['status'] == case['status'] and destination.get('sendAttempts', 0) == case.get('attempts', 1):
                     break
                 assert time.monotonic() < deadline, (case, destination)
@@ -154,6 +169,8 @@ def scenario(api, child, profile, ingress, evidence, receipt):
                             'validationEnabled': case.get('validate', False), 'intermediateQueuedObserved': queued_observed})
             write(evidence / 'writer-results.json', results)
         finally:
+            if queued_release is not None:
+                queued_release.write_text('Release owned retry before undeploy\n')
             write(folder / 'undeploy.json', api.call('/channels/' + channel_id + '/_undeploy', 'POST'))
     receipt.update(status='passed', assertions=[item['case'] for item in results])
 

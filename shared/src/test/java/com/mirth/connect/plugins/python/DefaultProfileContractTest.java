@@ -17,11 +17,11 @@ class DefaultProfileContractTest {
                 new PythonStep(), new PythonReceiverProperties(), new PythonDispatcherProperties())) {
             assertEquals("232030e4-aa0d-39fc-a889-fed1318ef412", model.getEnvironmentProfileId());
             assertEquals(PythonContract.DEFAULT_PROFILE_NAME, model.getEnvironmentNameHint());
-            assertEquals("", model.getPythonScript());
+            assertEquals(model instanceof PythonStep ? "" : "return None\n", model.getPythonScript());
             PythonScriptConfiguration restored = (PythonScriptConfiguration) stream.fromXML(stream.toXML(model));
-            assertEquals("", restored.getPythonScript());
+            assertEquals(model.getPythonScript(), restored.getPythonScript());
         }
-        assertEquals("result = arguments[0] if arguments else None\n",
+        assertEquals("return arguments[0] if arguments else None\n",
                 new PythonCodeTemplateProperties().getPythonScript());
     }
 

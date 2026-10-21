@@ -15,7 +15,7 @@ export function templateDefaults({ version, template } = {}) {
         type: 'FUNCTION',
         ...defaults(),
         functionName,
-        pythonScript: 'result = arguments[0] if arguments else None\n'
+        pythonScript: 'return arguments[0] if arguments else None\n'
     };
 }
 

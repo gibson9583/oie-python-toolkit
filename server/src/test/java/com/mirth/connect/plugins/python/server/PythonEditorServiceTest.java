@@ -65,7 +65,7 @@ class PythonEditorServiceTest {
         assertThrows(ApiFailure.class, () -> PythonEditorService.validate(request));
         request.operation = "format"; request.pythonScript = "x".repeat(256 * 1024 + 1);
         assertThrows(ApiFailure.class, () -> PythonEditorService.validate(request));
-        request.pythonScript = "result = 1";
+        request.pythonScript = "return 1";
         request.selection = new PythonEditorService.Selection();
         request.selection.startLineNumber = 1; request.selection.endLineNumber = 2;
         assertThrows(ApiFailure.class, () -> PythonEditorService.validate(request));

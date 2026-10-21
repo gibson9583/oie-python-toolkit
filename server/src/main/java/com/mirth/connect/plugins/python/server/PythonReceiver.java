@@ -66,7 +66,7 @@ public class PythonReceiver extends PollConnector {
             metadata.put("connector_name", getSourceName());
             metadata.put("metadata_id", Wire.encodeTopLevel(getMetaDataId(), "message", "metadata_id"));
             context.put("message", metadata);
-            context.put("poll", Map.of("id", UUID.randomUUID().toString()));
+            context.put("sourceMap", Wire.encodeMap(Map.of("pollId", UUID.randomUUID().toString()), "sourceMap"));
             context.put("maps", maps.wire());
             context.put("maxMessages", runtime.config.maxReaderMessages);
             context.put("destinationIds", destinations);

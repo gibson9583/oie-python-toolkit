@@ -5,10 +5,11 @@ import copy
 import json
 import types
 import xml.etree.ElementTree as ET
+from collections.abc import Mapping
 
 from . import _codec
 from ._codec import ABSENT, ContractError, check_json_document, decode, encode
-from ._result_types import RESERVED_SOURCE_MAP_KEYS, RESPONSE_STATUSES, Message, Response, Status
+from ._result_types import RESERVED_SOURCE_MAP_KEYS, RESPONSE_STATUSES, Message, Response, Status, UnsupportedValue
 from ._maps import GlobalMap, ScriptMap
 
 MAP_NAMES = ("channelMap", "connectorMap", "sourceMap", "responseMap",
@@ -261,8 +262,8 @@ class _BaseContext:
             result["maps"] = self._maps.delta()
         return result
 
-    def result_from_globals(self, values):
-        return self.result_for(values.get("result"))
+    def result_from_globals(self, values, returned=None):
+        return self.result_for(returned)
 
 
 class TransformContext(_BaseContext):
@@ -330,7 +331,7 @@ class TransformContext(_BaseContext):
             values["response"] = self.response
         return values
 
-    def result_from_globals(self, values):
+    def result_from_globals(self, values, returned=None):
         for name, document in (("msg", self._msg), ("tmp", self._tmp)):
             if document is None:
                 if name in values:
@@ -343,17 +344,12 @@ class TransformContext(_BaseContext):
 
 
 class FilterContext(TransformContext):
-    """A native rule: result must be exactly True or False; documents/maps match transformers."""
+    """A native rule must return exactly True or False; documents/maps match transformers."""
 
-    def script_globals(self):
-        values = super().script_globals()
-        values["result"] = None
-        return values
-
-    def result_from_globals(self, values):
-        accepted = values.get("result")
+    def result_from_globals(self, values, returned=None):
+        accepted = returned
         if type(accepted) is not bool:
-            raise ContractError("Filter result must be exactly True or False", "result")
+            raise ContractError("Filter must return exactly True or False", "result")
         out = super().result_from_globals(values)
         out["accepted"] = accepted
         return out
@@ -374,7 +370,7 @@ class WriterContext(_BaseContext):
 
     def script_globals(self):
         values = super().script_globals()
-        values.update(payload=self.payload, result=None)
+        values.update(payload=self.payload)
         return values
 
     def result_for(self, value):
@@ -397,7 +393,7 @@ class WriterContext(_BaseContext):
             }
         else:
             raise ContractError(
-                "result must be None, a str, Status, or Response; got %s. Serialize JSON explicitly."
+                "Writer must return None, a str, Status, or Response; got %s. Serialize JSON explicitly."
                 % type(value).__name__,
                 "result",
             )
@@ -405,20 +401,26 @@ class WriterContext(_BaseContext):
 
 
 class ReaderContext(_BaseContext):
-    """Reader poll metadata and message result extraction."""
+    """Invocation-local source metadata and message result extraction."""
 
     def __init__(self, wire, logger):
         super().__init__(wire, logger)
-        self.poll = _frozen(decode(wire.get("poll", {})))
+        source_map = {key: decode(value, "sourceMap", key) for key, value in wire.get("sourceMap", {}).items()}
+        self._source_map = ScriptMap("sourceMap", source_map, True, {}, logger)
         self._max_messages = int(wire.get("maxMessages", 1000))
         self._destination_ids = frozenset(wire.get("destinationIds", []))
 
+    @property
+    def sourceMap(self):
+        return self._source_map
+
     def script_globals(self):
         values = super().script_globals()
-        values.update(poll=self.poll, result=None)
+        values.update(sourceMap=self.sourceMap)
         return values
 
     def result_for(self, value):
+        self._encode_source_map(self.sourceMap, "sourceMap")
         if value is None:
             items = []
         elif isinstance(value, Message):
@@ -427,7 +429,7 @@ class ReaderContext(_BaseContext):
             items = value
         else:
             raise ContractError(
-                "result must be None, a Message, or a list of Message objects; got %s"
+                "Reader must return None, a Message, or a list of Message objects; got %s"
                 % type(value).__name__,
                 "result",
             )
@@ -452,11 +454,9 @@ class ReaderContext(_BaseContext):
             raise ContractError("%s.payload must be str or bytes" % where, where + ".payload")
         if not isinstance(item.source_map, dict):
             raise ContractError("%s.source_map must be a dict" % where, where + ".source_map")
-        reserved = sorted(k for k in item.source_map if k in RESERVED_SOURCE_MAP_KEYS)
-        if reserved:
-            raise ContractError(
-                "%s.source_map uses reserved engine key(s): %s" % (where, ", ".join(reserved)), where + ".source_map"
-            )
+        source_map = dict(self.sourceMap)
+        source_map.update(item.source_map)
+        encoded_source_map = self._encode_source_map(source_map, where + ".source_map")
         ids = item.destination_ids
         if ids is not None:
             if not isinstance(ids, (list, tuple)) or any(isinstance(i, bool) or not isinstance(i, int) for i in ids):
@@ -471,9 +471,31 @@ class ReaderContext(_BaseContext):
             ids = list(ids)
         return {
             "payload": encode(payload, where + ".payload"),
-            "sourceMap": encode(item.source_map, where + ".source_map"),
+            "sourceMap": encoded_source_map,
             "destinationIds": ids,
         }
+
+    @staticmethod
+    def _encode_source_map(values, where):
+        reserved = sorted(k for k in values if isinstance(k, str) and k in RESERVED_SOURCE_MAP_KEYS)
+        if reserved:
+            raise ContractError("%s uses reserved engine key(s): %s" % (where, ", ".join(reserved)), where)
+        encoded = encode(values, where)
+        ReaderContext._check_source_values(values, where)
+        return encoded
+
+    @staticmethod
+    def _check_source_values(value, where):
+        # Unlike shared-map deltas, Reader metadata has no engine object store
+        # against which an opaque value can be resolved.
+        if isinstance(value, UnsupportedValue):
+            raise ContractError("%s cannot contain an unsupported engine value" % where, where)
+        if isinstance(value, Mapping):
+            for key, child in value.items():
+                ReaderContext._check_source_values(child, "%s[%r]" % (where, key))
+        elif isinstance(value, (list, tuple)):
+            for index, child in enumerate(value):
+                ReaderContext._check_source_values(child, "%s[%d]" % (where, index))
 
 
 class FunctionContext(_BaseContext):
@@ -488,7 +510,7 @@ class FunctionContext(_BaseContext):
 
     def script_globals(self):
         values = super().script_globals()
-        values.update(arguments=self.arguments, result=None)
+        values.update(arguments=self.arguments)
         return values
 
     def result_for(self, value):

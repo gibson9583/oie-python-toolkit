@@ -15,10 +15,10 @@ Use `channelMap`, `connectorMap`, `sourceMap`, `responseMap`, `globalMap`, `glob
 | `configurationMap` | R | R | R | R | R | R | R | R |
 | `channelMap` | RW | RW | RW | RW | RW | — | RW | RW |
 | `connectorMap` | RW | RW | RW | RW | RW | — | RW | RW |
-| `sourceMap` | R | R | R | R | R | — | R | R |
+| `sourceMap` | R | R | R | R | R | RW | R | R |
 | `responseMap` | RW | RW | RW | RW | RW | — | RW | RW |
 
-Python Functions receive the calling message's maps in their supported filter/transformer contexts. Readers run before a message exists and receive only shared maps. A Reader sets source metadata for each emitted message through `Message(..., source_map={...})`, rather than a supplied `sourceMap`. There are no response filter rules or Python lifecycle-script surfaces.
+Python Functions receive the calling message's maps in their supported filter/transformer contexts. Readers run before a message exists and receive shared maps plus a fresh writable `sourceMap`, initially containing a live invocation UUID at `pollId` (`"sample"` in synthetic Test). Mutate this supplied map to set common source values on all emitted messages. Each `Message(..., source_map={...})` overrides inherited entries for that message, including `pollId`. Downstream Python receives the resulting source map read-only; JavaScript can read it with `sourceMap.get("key")`. The Reader map is local to one invocation and does not carry state into later polls. There are no response filter rules or Python lifecycle-script surfaces.
 
 | Map | What it represents | Typical use |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ Python Functions receive the calling message's maps in their supported filter/tr
 | `configurationMap` | Engine configuration entries | Read `configurationMap.get("site")`; manage values through the engine's administrative configuration. |
 | `channelMap` | Current message's channel-level variables | Pass supported data between steps/destinations, for example `channelMap.put("patientId", "P123")`. |
 | `connectorMap` | Current connector's message variables | Store local request data, for example `connectorMap.put("requestId", "R1")`. |
-| `sourceMap` | Source metadata on the current message | Read `sourceMap.get("origin")`; create your own entries in a Reader's `Message.source_map`. |
+| `sourceMap` | Source metadata; writable defaults in a Reader, read-only on a current message | Set `sourceMap.put("origin", "reader")` in a Reader; read `sourceMap.get("origin")` downstream. Use `Message.source_map` for per-message overrides. |
 | `responseMap` | Current message's responses and response-related entries | Read by destination name or literal key; store application entries with literal-key writes. Native Java response objects remain unsupported sentinels. |
 
 All string-keyed entries are snapshotted; there is no map-selection step or key allowlist in script code. Non-string engine map keys are omitted. Shared map lifetimes follow the engine's existing configuration and redeployment behavior. They are node-local, not a cluster-wide or durable transaction store. Avoid assuming that a global survives a restart or redeploy.
@@ -54,6 +54,8 @@ Rebinding a local name does not replace the engine map:
 # Correct: mutate entries in the supplied object.
 channelMap.update({"patientId": "P123", "checked": True})
 ```
+
+This also applies to the Reader's `sourceMap`: mutate the supplied object instead of assigning a replacement dictionary. Source values can include `None`; reserved engine source keys and unsupported values fail validation even if the Reader returns no messages. See [Reader source values](Connectors.md#initial-source-values-and-reserved-keys).
 
 `channelMap = {"patientId": "P123"}` only changes the local binding. The toolkit extracts changes from the original map object, so this assignment is not an engine-map replacement.
 
@@ -272,6 +274,8 @@ Use the actual Java object's API in its JavaScript surface. Serializing arbitrar
 
 ## Snapshots, commit, concurrency, and retries
 
+The Reader's `sourceMap` supplies local defaults to returned messages; it produces no shared-map update and has no lifetime beyond the invocation. The rules below describe commits to writable message/shared maps.
+
 For each invocation, the Java side snapshots the available maps and serializes their supported values. Python reads and changes those local objects. Result extraction compares the final values with the initial snapshot and produces per-key sets/deletes, including nested changes. The Java side validates the script's complete result before applying those map changes.
 
 | Event | Map behavior |
@@ -310,10 +314,10 @@ Handle anticipated data problems at the relevant boundary. Missing optional entr
 consent = sourceMap.get("consent")
 if consent is not None and not isinstance(consent, bool):
     raise TypeError("sourceMap consent must be bool or None")
-result = consent is True
+return consent is True
 ```
 
-Review the context's result contract when testing failure paths. A map update plus a missing filter result fails validation; the same map update plus a valid false result commits and rejects. Synthetic Test supports sample shared maps and destination lookup metadata, while live deployment determines real lifetimes and concurrency. See [Editor testing and troubleshooting](Editor-testing-and-troubleshooting.md).
+Review the context's result contract when testing failure paths. A filter that falls through accepts and commits valid map updates. An explicit null return fails validation; a valid false return commits changes and rejects. Synthetic Test supports sample shared maps and destination lookup metadata, while live deployment determines real lifetimes and concurrency. See [Editor testing and troubleshooting](Editor-testing-and-troubleshooting.md).
 
 ## Implementation references
 

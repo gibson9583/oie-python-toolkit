@@ -44,7 +44,7 @@ class TemplateSnapshotsTest {
         try (var fixture = new PythonRuntimeIntegrationTest.Fixture()) {
             var deployment = PythonRuntimeIntegrationTest.deployment(UUID.randomUUID().toString(), fixture.profileId, "step");
             var a = new PythonCodeTemplateProperties(); a.setEnvironmentProfileId(fixture.profileId);
-            var b = a.clone(); b.setPythonScript("result = 'B'\n");
+            var b = a.clone(); b.setPythonScript("return 'B'\n");
             var library = PythonCodeTemplateTest.library(PythonCodeTemplateTest.template(b), deployment.model().getId());
             when(fixture.runtime.engine.codeTemplateLibraries()).thenReturn(List.of(library));
             int leases = fixture.runtime.artifacts.activeLeases();

@@ -150,9 +150,9 @@ class PythonRuntimeIntegrationTest {
             PythonReceiverProperties reader, PythonDispatcherProperties writer, PythonStep source, PythonStep response) {}
     static Deployment deployment(String id, String profile, String marker) {
         PythonReceiverProperties reader = new PythonReceiverProperties(); reader.setEnvironmentProfileId(profile);
-        reader.setPythonScript("from oie_python import Message\nresult = [Message('" + marker + "', source_map={'origin': 'python'}, destination_ids=[]), Message(b'\\x00\\xff')]\n");
+        reader.setPythonScript("from oie_python import Message\nreturn [Message('" + marker + "', source_map={'origin': 'python'}, destination_ids=[]), Message(b'\\x00\\xff')]\n");
         PythonDispatcherProperties writer = new PythonDispatcherProperties(); writer.setEnvironmentProfileId(profile);
-        writer.setPythonScript("from oie_python import Response\nconnectorMap['marker'] = '" + marker + "'\nresult = Response(data='" + marker + "|' + payload)\n");
+        writer.setPythonScript("from oie_python import Response\nconnectorMap['marker'] = '" + marker + "'\nreturn Response(data='" + marker + "|' + payload)\n");
         PythonStep source = new PythonStep(); source.setEnvironmentProfileId(profile); source.setEnabled(true); source.setName("JSON output");
         source.setPythonScript("(tmp if has_tmp else msg)['marker'] = '" + marker + "'\nchannelMap['marker'] = '" + marker + "'\n");
         PythonStep response = new PythonStep(); response.setEnvironmentProfileId(profile); response.setEnabled(true); response.setName("Response status");
@@ -279,7 +279,7 @@ class PythonRuntimeIntegrationTest {
             assertEquals("B|", writerB.send(a.writer, outgoing).getMessage());
             fixture.recordWorkers();
             Deployment malformed = deployment(channelId, fixture.profileId, "C");
-            malformed.writer.setPythonScript("connectorMap['partial'] = 'must-not-apply'\nresult = {'invalid': 'response'}\n");
+            malformed.writer.setPythonScript("connectorMap['partial'] = 'must-not-apply'\nreturn {'invalid': 'response'}\n");
             fixture.runtime.deployments.prepare(malformed.model);
             when(fixture.runtime.engine.deployedChannel(channelId)).thenReturn(malformed.channel);
             Writer malformedWriter = writer(malformed);

@@ -42,7 +42,7 @@ class FunctionContextTest(unittest.TestCase):
         for value in (float("nan"), 2**60, object(), {1: "x"}):
             with self.assertRaises(ContractError):
                 context.result_for(value)
-        self.assertEqual(validate.check("result = arguments\n", "call"), [])
+        self.assertEqual(validate.check("return arguments\n", "call"), [])
         self.assertEqual(validate.check("def helper(value):\n    return value\n", "call"), [])
 
 
@@ -234,9 +234,8 @@ class TransformContextTest(unittest.TestCase):
             changes = context.result_from_globals(values)["maps"]
             self.assertEqual(changes["globalMap"]["set"]["nested"], {"items": ["python"]})
             self.assertEqual(changes["globalChannelMap"]["set"], {"new": "local"})
-            values["result"] = object()
             with self.assertRaises(ContractError):
-                context.result_from_globals(values)
+                context.result_from_globals(values, object())
 
     def test_log_limits_count_utf8_bytes_and_bound_empty_records(self):
         logger = ScriptLogger(3)
@@ -378,6 +377,50 @@ class WriterReaderTest(unittest.TestCase):
             with self.assertRaises(ContractError):
                 ctx.result_for(case)
 
+    def test_reader_source_map_defaults_overrides_and_independent_outputs(self):
+        wire = {"role": "read", "sourceMap": {"pollId": "first", "nested": {"items": []}}}
+        ctx = ReaderContext(wire, ScriptLogger(10))
+        self.assertNotIn("poll", ctx.script_globals())
+        self.assertIsNone(ctx.sourceMap.put("origin", "reader"))
+        self.assertEqual(ctx.sourceMap.get("pollId"), "first")
+        message = Message("x", source_map={"origin": "message", "pollId": "override"})
+        result = ctx.result_for([message, Message("y")])["messages"]
+        first = _codec.decode(result[0]["sourceMap"])
+        second = _codec.decode(result[1]["sourceMap"])
+        self.assertEqual(first, {"pollId": "override", "origin": "message", "nested": {"items": []}})
+        self.assertEqual(second["origin"], "reader")
+        first["nested"]["items"].append("changed")
+        self.assertEqual(second["nested"]["items"], [])
+        self.assertEqual(ctx.sourceMap["nested"]["items"], [])
+        self.assertEqual(message.source_map, {"origin": "message", "pollId": "override"})
+        next_ctx = ReaderContext(wire, ScriptLogger(10))
+        self.assertNotIn("origin", next_ctx.sourceMap)
+        self.assertNotIn("sourceMap", ctx.result_for(message).get("maps", {}))
+
+    def test_reader_source_map_validation_includes_empty_results(self):
+        invalid = [{"batchId": "reserved"}, {1: "not a string"}, {"nested": {1: "bad"}},
+                   {"nested": [object()]}, {"nested": [float("nan")]},
+                   {"nested": [UnsupportedValue("globalMap", "opaque", "java.lang.Object")]}]
+        cycle = {}; cycle["cycle"] = cycle
+        invalid.append(cycle)
+        for values in invalid:
+            for result in (None, [], Message("x")):
+                with self.subTest(values=repr(values), result=result):
+                    ctx = ReaderContext({"role": "read"}, ScriptLogger(10))
+                    # Bypass the convenience setter to exercise result-time validation.
+                    dict.update(ctx.sourceMap, values)
+                    with self.assertRaises(ContractError):
+                        ctx.result_for(result)
+        ctx = ReaderContext({"role": "read"}, ScriptLogger(10))
+        with self.assertRaises(ContractError):
+            ctx.result_for([Message("good"), Message("bad", source_map={"nested": object()})])
+
+    def test_reader_source_map_preserves_literal_tag_keys(self):
+        ctx = ReaderContext({"role": "read", "sourceMap": {"$t": "user-key", "nested": {
+            "$t": "map", "v": {"$t": "nested-user-key"}}}}, ScriptLogger(10))
+        self.assertEqual(_codec.decode(ctx.result_for(Message("x"))["messages"][0]["sourceMap"]),
+                         {"$t": "user-key", "nested": {"$t": "nested-user-key"}})
+
 
 class ValidateTest(unittest.TestCase):
     def codes(self, source, role="transform"):
@@ -385,8 +428,9 @@ class ValidateTest(unittest.TestCase):
 
     def test_known_roles_and_compile_errors(self):
         self.assertEqual(self.codes("pass", "unknown"), ["UNKNOWN_ROLE"])
-        for role in ("transform", "read", "write", "call"):
-            for source in ("def helper(:", "return 1", "yield 1", "await work()"):
+        for role in ("filter", "transform", "read", "write", "call"):
+            self.assertEqual(self.codes("return 1", role), ["PYTHON_SYNTAX"] if role == "transform" else [])
+            for source in ("def helper(:", "yield 1", "await work()"):
                 with self.subTest(role=role, source=source):
                     self.assertEqual(self.codes(source, role), ["PYTHON_SYNTAX"])
 
@@ -397,7 +441,7 @@ class ValidateTest(unittest.TestCase):
             self.assertEqual(self.codes(source, role), [])
         self.assertFalse(os.path.exists(marker))
 
-    def test_every_role_is_plain_module_code(self):
+    def test_every_role_accepts_helpers_and_ordinary_statements(self):
         sources = ["", "msg['changed'] = True", "transform = read = write = call = 42",
                    "def transform():\n    pass\n", "def read(a, b):\n    yield a\n",
                    "async def write():\n    pass\n", "class call:\n    pass\n",
@@ -442,6 +486,78 @@ class WorkerProcessTest(unittest.TestCase):
             "context": wire,
         })
 
+    def test_native_script_returns_execute_over_worker_protocol(self):
+        cases = [
+            ({"role": "read"}, "from oie_python import Message\nreturn Message('body')", "messages"),
+            ({"role": "write", "payload": "body"}, "return payload", "response"),
+            ({"role": "call", "arguments": [7]}, "return {'argument': arguments[0]}", "value"),
+        ]
+        for wire, source, field in cases:
+            with self.subTest(role=wire['role']):
+                reply = self.execute_source(source, wire)
+                self.assertEqual(reply['type'], 'RESULT', reply)
+                self.assertIn(field, reply['result'])
+        wire = transform_wire(msg_kind='raw', msg_text='before')
+        wire['role'] = 'filter'
+        reply = self.execute_source("msg += ' after'\nreturn False\nraise AssertionError('unreachable')", wire)
+        self.assertEqual(reply['type'], 'RESULT', reply)
+        self.assertIs(reply['result']['accepted'], False)
+        self.assertEqual(reply['result']['msg']['text'], 'before after')
+
+    def test_return_none_and_finally_override_local_result_on_worker(self):
+        for role in ('read', 'write', 'call'):
+            wire = {'role': role}
+            if role == 'call':
+                wire['arguments'] = []
+            reply = self.execute_source('result = object()\ntry:\n    return 7\nfinally:\n    return None', wire)
+            self.assertEqual(reply['type'], 'RESULT', reply)
+        reply = self.call({'type': 'LOAD', 'id': 'return-transform', 'spec': 'return-transform',
+                           'role': 'transform', 'label': '<authored>', 'source': 'x = 1\nreturn 1\n'})
+        self.assertEqual(reply['type'], 'ERROR', reply)
+        self.assertEqual(reply['error']['line'], 2)
+
+    def test_result_variables_never_supply_worker_outputs(self):
+        cases = [({"role": "read"}, "Message('body')", {"messages": []}),
+                 ({"role": "write"}, "'body'", {"response": {"status": "SENT", "data": "", "statusMessage": None, "error": None}, "maps": {}}),
+                 ({"role": "call", "arguments": []}, "{'body': True}", {"value": None})]
+        for wire, value, empty in cases:
+            source = "from oie_python import Message\nassert 'result' not in globals()\nresult = " + value
+            with self.subTest(role=wire["role"]):
+                reply = self.execute_source(source, wire)
+                self.assertEqual(reply["type"], "RESULT", reply)
+                self.assertEqual(reply["result"], empty)
+                reply = self.execute_source(source + "\nreturn result", wire)
+                self.assertEqual(reply["type"], "RESULT", reply)
+                self.assertNotEqual(reply["result"], empty)
+        wire = transform_wire()
+        wire["role"] = "filter"
+        for source in ("return", "return None"):
+            reply = self.execute_source(source, wire)
+            self.assertEqual(reply["type"], "ERROR", reply)
+            self.assertEqual(reply["error"]["kind"], "contract")
+            self.assertIn("exactly True or False", reply["error"]["message"])
+        for source in ("", "# comment", "assert 'result' not in globals()\nresult = False",
+                       "if False:\n    return False"):
+            reply = self.execute_source(source, wire)
+            self.assertEqual(reply["type"], "RESULT", reply)
+            self.assertIs(reply["result"]["accepted"], True)
+        reply = self.execute_source("assert 'result' not in globals()\nresult = False\nreturn result", wire)
+        self.assertEqual(reply["type"], "RESULT", reply)
+        self.assertIs(reply["result"]["accepted"], False)
+
+    def test_filter_fallthrough_finally_mutations_and_exception_atomicity(self):
+        wire = transform_wire(msg_kind='raw', msg_text='before')
+        wire['role'] = 'filter'
+        source = "try:\n    msg += '|changed'\nfinally:\n    channelMap['final'] = True"
+        reply = self.execute_source(source, wire)
+        self.assertEqual(reply['type'], 'RESULT', reply)
+        self.assertIs(reply['result']['accepted'], True)
+        self.assertEqual(reply['result']['msg']['text'], 'before|changed')
+        self.assertIs(reply['result']['maps']['channelMap']['set']['final'], True)
+        reply = self.execute_source(source + "\nraise ValueError('before end')", wire)
+        self.assertEqual(reply['type'], 'ERROR', reply)
+        self.assertNotIn('result', reply)
+
     def test_all_roles_execute_top_level_without_calling_named_helpers(self):
         source = """
             assert 'ctx' not in globals() and 'output' not in globals()
@@ -475,24 +591,25 @@ class WorkerProcessTest(unittest.TestCase):
                     self.assertEqual(reply["result"], result, reply)
                     self.assertEqual([record["level"] for record in reply["logs"]], ["warning", "stdout"])
 
-    def test_reader_writer_and_function_collect_result_globals(self):
+    def test_reader_writer_and_function_collect_returned_values(self):
         reader = self.execute_source("""
             from oie_python import Message
-            assert result is None and poll['count'] == 2
+            assert 'result' not in globals() and sourceMap['count'] == 2
+            assert 'poll' not in globals()
             assert 'msg' not in globals() and 'channelMap' not in globals()
-            result = [Message(b'bytes', source_map={'origin': 'test'}, destination_ids=[1])]
-            """, {"role": "read", "poll": {"count": {"$t": "int", "v": "2"}},
+            return [Message(b'bytes', source_map={'origin': 'test'}, destination_ids=[1])]
+            """, {"role": "read", "sourceMap": {"count": {"$t": "int", "v": "2"}},
                    "maxMessages": 2, "destinationIds": [1]})
         self.assertEqual(reader["type"], "RESULT", reader)
         self.assertEqual(reader["result"]["messages"], [{
             "payload": {"$t": "bytes", "v": "Ynl0ZXM="},
-            "sourceMap": {"origin": "test"}, "destinationIds": [1],
+            "sourceMap": {"count": {"$t": "int", "v": "2"}, "origin": "test"}, "destinationIds": [1],
         }])
         writer = self.execute_source("""
             from oie_python import Response
-            assert result is None and payload == 'original'
+            assert 'result' not in globals() and payload == 'original'
             channelMap['sent'] = True
-            result = Response('QUEUED', data=payload + ' sent', status_message='waiting')
+            return Response('QUEUED', data=payload + ' sent', status_message='waiting')
             """, {"role": "write", "payload": "original",
                    "maps": {"channelMap": {"writable": True, "values": {}}}})
         self.assertEqual(writer["type"], "RESULT", writer)
@@ -501,17 +618,17 @@ class WorkerProcessTest(unittest.TestCase):
         })
         self.assertEqual(writer["result"]["maps"], {"channelMap": {"set": {"sent": True}, "delete": []}})
         function = self.execute_source("""
-            assert result is None and 'msg' not in globals() and 'channelMap' not in globals()
+            assert 'result' not in globals() and 'msg' not in globals() and 'channelMap' not in globals()
             def normalize(value):
                 return value.strip().upper()
-            result = {'name': normalize(arguments[0]), 'rest': arguments[1:]}
+            return {'name': normalize(arguments[0]), 'rest': arguments[1:]}
             """, {"role": "call", "arguments": [" alice ", 3, None]})
         self.assertEqual(function["result"], {"value": {"name": "ALICE", "rest": [3, None]}}, function)
 
-    def test_result_defaults_reset_and_invalid_results_keep_contract_checks(self):
-        cases = [({"role": "read"}, "result = 'not a Message'"),
-                 ({"role": "write"}, "result = {}"),
-                 ({"role": "call", "arguments": []}, "result = 2**60")]
+    def test_return_defaults_reset_and_invalid_returns_keep_contract_checks(self):
+        cases = [({"role": "read"}, "return 'not a Message'"),
+                 ({"role": "write"}, "return {}"),
+                 ({"role": "call", "arguments": []}, "return 2**60")]
         for wire, source in cases:
             with self.subTest(role=wire["role"]):
                 reply = self.execute_source(source, wire)
@@ -519,12 +636,12 @@ class WorkerProcessTest(unittest.TestCase):
                 self.assertEqual(reply["error"]["kind"], "contract")
                 self.assertIn("result", reply["error"]["field"])
                 self.assertNotIn("result", reply)
-                reply = self.execute_source("assert result is None\nresult = 123\ndel result", wire)
+                reply = self.execute_source("assert 'result' not in globals()\nresult = 123\ndel result", wire)
                 self.assertEqual(reply["type"], "RESULT", reply)
         reply = self.execute_source("assert 'result' not in globals()\nresult = object()")
         self.assertEqual(reply["result"], {"maps": {}}, reply)
 
-    def test_result_is_fresh_when_reusing_a_loaded_script(self):
+    def test_return_value_is_fresh_when_reusing_a_loaded_script(self):
         cases = [
             ({"role": "read"}, "Message('produced')", {"messages": []}),
             ({"role": "write"}, "'produced'",
@@ -533,8 +650,8 @@ class WorkerProcessTest(unittest.TestCase):
         ]
         for wire, value, empty in cases:
             with self.subTest(role=wire["role"]):
-                source = "from oie_python import Message\nassert result is None\n"
-                source += "if globalMap['produce']:\n    result = " + value + "\n"
+                source = "from oie_python import Message\nassert 'result' not in globals()\n"
+                source += "if globalMap['produce']:\n    return " + value + "\n"
                 wire["maps"] = {"globalMap": {"writable": True, "values": {"produce": True}}}
                 empty.setdefault("maps", {})
                 reply = self.execute_source(source, wire)
@@ -633,6 +750,32 @@ class WorkerProcessTest(unittest.TestCase):
                 self.assertEqual(reply["error"]["kind"], "contract")
                 self.assertEqual(reply["error"]["field"], field)
                 self.assertNotIn("result", reply)
+
+    def test_reader_source_map_mutations_survive_rebinding_and_reset_next_invocation(self):
+        wire = {"role": "read", "sourceMap": {"pollId": "sample"}}
+        source = """
+            from oie_python import Message
+            assert sourceMap.get('origin') is None
+            original = sourceMap
+            sourceMap = {'discarded': True}
+            original.put('origin', 'reader')
+            return [Message('one'), Message('two', source_map={'origin': 'message'})]
+            """
+        for _ in range(2):
+            reply = self.execute_source(source, wire)
+            self.assertEqual(reply["type"], "RESULT", reply)
+            self.assertEqual([m["sourceMap"] for m in reply["result"]["messages"]],
+                             [{"pollId": "sample", "origin": "reader"}, {"pollId": "sample", "origin": "message"}])
+
+    def test_invalid_reader_defaults_cannot_return_shared_deltas(self):
+        wire = {"role": "read", "sourceMap": {"pollId": "sample"},
+                "maps": {"globalMap": {"writable": True, "values": {}}}}
+        for source in ("sourceMap['batchId'] = 'reserved'", "sourceMap['nested'] = [object()]",
+                       "dict.__setitem__(sourceMap, 1, 'invalid')"):
+            reply = self.execute_source("globalMap['partial'] = True\n" + source + "\nreturn None", wire)
+            self.assertEqual(reply["type"], "ERROR", reply)
+            self.assertEqual(reply["error"]["kind"], "contract")
+            self.assertNotIn("result", reply)
 
     def test_direct_readonly_values_and_missing_maps(self):
         wire = transform_wire()

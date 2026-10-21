@@ -11,7 +11,7 @@ import com.mirth.connect.connectors.python.PythonReceiverProperties;
 class PythonConnectorPanelTest {
     @Test void panelsKeepTheLoadedPropertiesUnchanged() {
         var reader = new PythonReceiverPanel(); var readerProperties = new PythonReceiverProperties();
-        readerProperties.setPythonScript("result = None\n"); readerProperties.setEnvironmentProfileId("profile");
+        readerProperties.setPythonScript("return None\n"); readerProperties.setEnvironmentProfileId("profile");
         reader.setProperties(readerProperties);
         assertSame(readerProperties, reader.getProperties());
         assertTrue(reader.checkProperties(readerProperties, true));
@@ -19,7 +19,7 @@ class PythonConnectorPanelTest {
         assertInstanceOf(PythonReceiverProperties.class, reader.getDefaults());
 
         var writer = new PythonDispatcherPanel(); var writerProperties = new PythonDispatcherProperties();
-        writerProperties.setPythonScript("result = payload\n");
+        writerProperties.setPythonScript("return payload\n");
         writer.setProperties(writerProperties);
         assertSame(writerProperties, writer.getProperties());
         assertEquals("Python Writer", writer.getConnectorName());

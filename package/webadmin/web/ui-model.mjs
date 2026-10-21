@@ -13,8 +13,8 @@ export function decode(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('The Python runtime returned a malformed response.');
     return value;
 }
-export function defaults() {
-    return { environmentProfileId: DEFAULT_PROFILE_ID, environmentNameHint: DEFAULT_PROFILE_NAME, pythonScript: '', timeoutMillis: 30000, contractVersion: 1 };
+export function defaults(role) {
+    return { environmentProfileId: DEFAULT_PROFILE_ID, environmentNameHint: DEFAULT_PROFILE_NAME, pythonScript: role === 'reader' || role === 'writer' ? 'return None\n' : '', timeoutMillis: 30000, contractVersion: 1 };
 }
 export function newEnvironment(runtime, registryEpoch) {
     const runtimes = runtime.runtimes.filter(option => option.available);

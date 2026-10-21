@@ -164,17 +164,26 @@ try {
 
     for (const kind of ['step', 'reader', 'writer']) {
         await mount(kind);
-        assert.equal(await page.evaluate(() => window.lastEditor.getValue()), '');
-        assert.equal(await page.evaluate(() => window.subject.pythonScript), '');
+        if (kind === 'reader') {
+            const help = await page.locator('p').filter({ hasText: 'invocation metadata' }).innerText();
+            assert.match(help, /writable sourceMap/);
+            assert.ok(help.includes("sourceMap.get('pollId')"));
+            assert.match(help, /Message.source_map entries override them per message/);
+            assert.doesNotMatch(help, /Use poll\b/);
+            checks.push('Reader help describes writable sourceMap defaults and per-message overrides');
+        }
+        const starter = kind === 'step' ? '' : 'return None\n';
+        assert.equal(await page.evaluate(() => window.lastEditor.getValue()), starter);
+        assert.equal(await page.evaluate(() => window.subject.pythonScript), starter);
         await page.getByRole('button', { name: 'Test sample', exact: true }).click();
         assert.equal(await page.getByLabel('Synthetic sample context (JSON)', { exact: true }).inputValue(), '');
         const saved = `# Saved ${kind}\nprint("preserved")\n`;
         await mount(kind, { subject: { pythonScript: saved } });
         assert.equal(await page.evaluate(() => window.lastEditor.getValue()), saved);
-        checks.push(`${kind}: new source and sample are blank; saved source is preserved`);
+        checks.push(`${kind}: new source uses its starter, sample is blank, saved source is preserved`);
     }
     await mount('template');
-    assert.equal(await page.evaluate(() => window.lastEditor.getValue()), 'result = arguments[0] if arguments else None\n');
+    assert.equal(await page.evaluate(() => window.lastEditor.getValue()), 'return arguments[0] if arguments else None\n');
     checks.push('Python Function keeps its starter');
 
     await settings(soleChoices);
@@ -232,7 +241,7 @@ try {
     const logScript = 'from oie_python import Message\n'
         + 'lines = [str(i) + ": " + "x" * 700 for i in range(70)]\n'
         + 'for line in lines:\n    logger.info(line)\n'
-        + 'result = Message("\\n".join(lines))\n';
+        + 'return Message("\\n".join(lines))\n';
     await mount('reader', { subject: { pythonScript: logScript } });
     await page.getByRole('button', { name: 'Test sample', exact: true }).click();
     await page.getByRole('button', { name: 'Run sample once', exact: true }).click();
@@ -248,7 +257,7 @@ try {
     checks.push('sample output and script logs scroll within the panel on desktop and mobile');
 
     sampleFailure = true;
-    await mount('reader', { subject: { pythonScript: logScript.replace('result = Message("\\n".join(lines))', 'raise ValueError("x" * 2800)') } });
+    await mount('reader', { subject: { pythonScript: logScript.replace('return Message("\\n".join(lines))', 'raise ValueError("x" * 2800)') } });
     await page.getByRole('button', { name: 'Test sample', exact: true }).click();
     await page.getByRole('button', { name: 'Run sample once', exact: true }).click();
     await page.getByLabel('Python diagnostics', { exact: true }).waitFor();

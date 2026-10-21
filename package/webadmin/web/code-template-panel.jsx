@@ -102,7 +102,7 @@ function TemplatePanel({ template, properties, onChange, readOnly }) {
         {profiles && properties.environmentProfileId && !selected && <p role="alert">This script environment is unavailable. Select an available environment before deploying.</p>}
         <PythonEditor value={properties.pythonScript || ''} onChange={value => change('pythonScript', value)} readOnly={readOnly} role="code-template" profile={selected} catalog={profiles}/>
         <p className="text-text-dim" style={{ maxWidth: '72ch' }}>
-            Read <code>arguments</code> directly and assign a JSON-compatible value to <code>result</code>.
+            Read <code>arguments</code> directly and <code>return</code> a JSON-compatible value.
             {' '}<code>logger</code> and <code>print()</code> write captured script output.
             {' '}The function name exposes this template to JavaScript in source, destination, and response transformers.
             {' '}Assign the returned value where it is needed.

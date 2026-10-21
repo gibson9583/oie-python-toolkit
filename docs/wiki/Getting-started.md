@@ -18,13 +18,13 @@ Select **Python Reader** as the source connector. This fixture emits one message
 import json
 from oie_python import Message
 
-result = Message(
+return Message(
     payload=json.dumps({"patient_id": "P123", "name": " Ada ", "active": True}),
     source_map={"origin": "getting-started"},
 )
 ```
 
-`Message` is the supported Python counterpart to a JavaScript Reader's `RawMessage`. `source_map` becomes the downstream read-only `sourceMap`. Leaving `result = None` would emit nothing. A plain string is not a valid Reader result.
+`Message` is the supported Python counterpart to a JavaScript Reader's `RawMessage`. The Reader's writable `sourceMap` supplies defaults for every returned message; `source_map` adds or overrides entries for this message. The resulting `sourceMap` is read-only in downstream Python. Returning `None` would emit nothing. A plain string is not a valid Reader result.
 
 You can instead use an existing source connector and submit the equivalent JSON to it.
 
@@ -33,10 +33,10 @@ You can instead use an existing source connector and submit the equivalent JSON 
 Add a **Python** rule in the source filter list:
 
 ```python
-result = msg.get("active") is True
+return msg.get("active") is True
 ```
 
-The result must be a real boolean, not `1`, a string, or a nonempty container. AND/OR ordering and short circuit behavior are the engine's existing filter behavior. Native Python filters do not need a JavaScript wrapper authored by you.
+An explicit return must be a real boolean, not `1`, a string, `None`, or a nonempty container. An empty rule or fallthrough accepts as `True`. AND/OR ordering and short circuit behavior are the engine's existing filter behavior. Native Python filters do not need a JavaScript wrapper authored by you.
 
 ## 3. Add a Python source transformer step
 
@@ -48,7 +48,7 @@ channelMap.put("patient_id", msg["patient_id"])
 logger.info("Normalized patient " + msg["patient_id"])
 ```
 
-The next step sees the updated document. `result = msg` is unnecessary in a transformer; document changes come from `msg`/`tmp`. Maps are available by name. `$c('patient_id')` becomes `channelMap.get("patient_id")` in Python.
+The next step sees the updated document. Document changes come from `msg`/`tmp`. Maps are available by name. `$c('patient_id')` becomes `channelMap.get("patient_id")` in Python.
 
 If the transformer has an outbound template, write its outgoing fields to `tmp` as appropriate. `has_tmp` tells you whether `tmp` exists; updating only `msg` does not populate an unrelated outbound template.
 
@@ -61,7 +61,7 @@ import json
 from oie_python import Response, Status
 
 document = json.loads(payload)
-result = Response(
+return Response(
     status=Status.SENT,
     data=json.dumps({"accepted": document["patient_id"]}),
     status_message="Demonstration completed",
@@ -84,7 +84,7 @@ For this fixture the expected result is a normalized name of `Ada`, a channel-ma
 If JavaScript needs to call Python, create a **Python Function** code template, name it `normalize_name`, choose a supported context, and enable its library for the channel:
 
 ```python
-result = arguments[0].strip()
+return arguments[0].strip()
 ```
 
 Call it from a JavaScript transformer after deploying the consuming channel:

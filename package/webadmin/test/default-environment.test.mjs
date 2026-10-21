@@ -6,10 +6,10 @@ import {DEFAULT_PROFILE_ID,DEFAULT_PROFILE_NAME,defaults,validateRuntime,testRun
 import {defaultProfile,automaticEnvironment,selectedEnvironment,environmentState} from '../web/default-environment.mjs';
 const profile=()=>({id:DEFAULT_PROFILE_ID,name:DEFAULT_PROFILE_NAME,registryEpoch:'epoch',revision:1,builtInDefault:true,archived:false,readiness:{state:'ready',pythonVersion:'3.14.6'}});
 const listing=()=>({defaultProfileId:DEFAULT_PROFILE_ID,profiles:[{id:'other',name:'Other'},profile()]});
-test('new scripts and connectors start blank with the exact shared stable vanilla binding',()=>{
+test('new scripts and connectors share the stable vanilla binding and role starter',()=>{
     const java=readFileSync(new URL('../../../shared/src/main/java/com/mirth/connect/plugins/python/PythonContract.java',import.meta.url),'utf8');
     assert.ok(java.includes(`DEFAULT_PROFILE_ID = "${DEFAULT_PROFILE_ID}"`));assert.ok(java.includes(`DEFAULT_PROFILE_NAME = "${DEFAULT_PROFILE_NAME}"`));
-    for(const role of ['source-transformer','destination-transformer','response-transformer','reader','writer']){const value=defaults(role);assert.equal(value.pythonScript,'');assert.deepEqual([value.environmentProfileId,value.environmentNameHint],[DEFAULT_PROFILE_ID,DEFAULT_PROFILE_NAME]);}
+    for(const role of ['source-transformer','destination-transformer','response-transformer','reader','writer']){const value=defaults(role);assert.equal(value.pythonScript,role==='reader'||role==='writer'?'return None\n':'');assert.deepEqual([value.environmentProfileId,value.environmentNameHint],[DEFAULT_PROFILE_ID,DEFAULT_PROFILE_NAME]);}
 });
 test('only an authoritative owned default fills a currently unconfigured binding',()=>{
     for(const id of [null,undefined,''])assert.deepEqual(automaticEnvironment({environmentProfileId:id},listing()),{id:DEFAULT_PROFILE_ID,name:DEFAULT_PROFILE_NAME});

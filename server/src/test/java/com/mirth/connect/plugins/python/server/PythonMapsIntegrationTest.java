@@ -91,11 +91,13 @@ class PythonMapsIntegrationTest {
             var deployment = PythonRuntimeIntegrationTest.deployment(UUID.randomUUID().toString(), fixture.profileId, "maps");
             deployment.reader().setPythonScript("""
                     from oie_python import Message
-                    assert 'channelMap' not in globals() and 'sourceMap' not in globals()
+                    assert 'channelMap' not in globals() and 'poll' not in globals()
+                    assert sourceMap.get('pollId')
+                    sourceMap.put('origin', 'reader')
                     assert configurationMap['site'] == 'local'
                     globalMap.put('reader', globalMap.get('reader', 0) + 1)
                     globalChannelMap.put('reader', True)
-                    result = Message('read') if globalMap['reader'] == 1 else object()
+                    return Message('read') if globalMap['reader'] == 1 else object()
                     """);
             deployment.writer().setPythonScript("""
                     assert globalMap['reader'] == 1
@@ -105,14 +107,17 @@ class PythonMapsIntegrationTest {
                     channelMap.put('written', True)
                     connectorMap.put('written', True)
                     responseMap.put('written', True)
-                    result = 'accepted' if payload == '' else object()
+                    return 'accepted' if payload == '' else object()
                     """);
             fixture.runtime.deployments.prepare(deployment.model());
             when(fixture.runtime.engine.deployedChannel(deployment.model().getId())).thenReturn(deployment.channel());
             var reader = PythonRuntimeIntegrationTest.reader(deployment);
             var writer = PythonRuntimeIntegrationTest.writer(deployment);
             fixture.runtime.deployments.activate(deployment.channel());
-            assertEquals("read", reader.executeRead().get(0).getRawData());
+            var read = reader.executeRead().get(0);
+            assertEquals("read", read.getRawData());
+            assertEquals("reader", read.getSourceMap().get("origin"));
+            assertDoesNotThrow(() -> UUID.fromString((String) read.getSourceMap().get("pollId")));
             assertEquals(1, global.get("reader"));
             assertThrows(Wire.ValueException.class, reader::executeRead);
             assertEquals(1, global.get("reader"), "An invalid Reader result must not advance shared state");
@@ -126,6 +131,24 @@ class PythonMapsIntegrationTest {
             message.setEncoded(ConnectorContractTest.content(com.mirth.connect.donkey.model.message.ContentType.ENCODED, "invalid"));
             assertThrows(Wire.ValueException.class, () -> writer.write(message, false));
             assertEquals("before", global.get("writer")); assertTrue(message.getChannelMap().isEmpty());
+        }
+    }
+
+    @Test void invalidReaderSourceDefaultsDoNotCommitSharedChangesEvenWithoutMessages() throws Exception {
+        try (var fixture = new PythonRuntimeIntegrationTest.Fixture()) {
+            Map<String, Object> global = shared(fixture);
+            for (String invalid : List.of("sourceMap['batchId'] = 'reserved'", "sourceMap['nested'] = [object()]",
+                    "sourceMap['nested'] = [globalMap['opaque']]")) {
+                global.put("opaque", new Object());
+                var deployment = PythonRuntimeIntegrationTest.deployment(UUID.randomUUID().toString(), fixture.profileId, "maps");
+                deployment.reader().setPythonScript("globalMap['partial'] = True\n" + invalid + "\nreturn None\n");
+                fixture.runtime.deployments.prepare(deployment.model());
+                when(fixture.runtime.engine.deployedChannel(deployment.model().getId())).thenReturn(deployment.channel());
+                var reader = PythonRuntimeIntegrationTest.reader(deployment);
+                fixture.runtime.deployments.activate(deployment.channel());
+                assertThrows(Wire.ValueException.class, reader::executeRead);
+                assertFalse(global.containsKey("partial"), "Invalid Reader defaults must not commit shared changes");
+            }
         }
     }
 
@@ -146,7 +169,7 @@ class PythonMapsIntegrationTest {
                     channelMap.put('function', phase)
                     connectorMap.put('function', phase)
                     responseMap.put('function', phase)
-                    result = {'site': configurationMap['site']} if arguments[0] else float('nan')
+                    return {'site': configurationMap['site']} if arguments[0] else float('nan')
                     """);
             var template = PythonCodeTemplateTest.template(properties);
             when(fixture.runtime.engine.codeTemplateLibraries()).thenReturn(List.of(PythonCodeTemplateTest.library(template, deployment.model().getId())));

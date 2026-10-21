@@ -115,9 +115,9 @@ try {
             };
         }
     });
-    for (const [kind, role, global] of [['reader', 'reader', 'poll'], ['writer', 'writer', 'payload'],
+    for (const [kind, role, global] of [['reader', 'reader', 'sourceMap'], ['writer', 'writer', 'payload'],
         ['step', 'source-transformer', 'has_tmp'], ['step', 'destination-transformer', 'has_tmp'],
-        ['step', 'response-transformer', 'response'], ['rule', 'source-filter', 'result'], ['rule', 'destination-filter', 'result'], ['template', 'code-template', 'arguments']]) {
+        ['step', 'response-transformer', 'response'], ['rule', 'source-filter', 'msg'], ['rule', 'destination-filter', 'msg'], ['template', 'code-template', 'arguments']]) {
         await page.evaluate(({ kind, role, catalog }) => window.showPanel(kind, {
             role,
             subject: { environmentProfileId: catalog.profileId }, channel: { id: catalog.channelId }
@@ -131,7 +131,10 @@ try {
             const set = value => { editor.setValue(value); return model.getPositionAt(value.length); };
             const complete = async source => (await providers.completion.provideCompletionItems(model, set(source), {}, {})).suggestions.map(item => item.label);
             const output = { role, maps: await complete('globalMap.'), logger: await complete('logger.'),
-                stdlib: await complete('import json\njson.'), globals: await complete(global.slice(0, -1)) };
+                stdlib: await complete('import json\njson.'), globals: await complete(global.slice(0, -1)),
+                sourceMap: await complete('sourceMap.'), removedPoll: await complete('pol'),
+                removedResult: await complete('resul') };
+            if (!role.endsWith('transformer')) output.blankLine = await complete('return None\n');
             const position = set('globalMap.get(');
             output.signature = (await providers.signature.provideSignatureHelp(model, position, {}))?.value;
             set('globalMap.get');
@@ -139,9 +142,13 @@ try {
             if (role === 'response-transformer') output.response = await complete('response.');
             if (role === 'reader' || role === 'writer') {
                 const name = role === 'reader' ? 'Message' : 'Response';
-                const at = set(`from oie_python import ${name}\nresult = ${name}(`);
+                const at = set(`from oie_python import ${name}\nreturn ${name}(`);
                 output.resultSignature = (await providers.signature.provideSignatureHelp(model, at, {}))?.value;
-                if (role === 'writer') output.statuses = await complete('from oie_python import Status\nresult = Status.');
+                if (role === 'writer') output.statuses = await complete('from oie_python import Status\nreturn Status.');
+                else {
+                    const at = set('sourceMap.put(');
+                    output.sourceMapSignature = (await providers.signature.provideSignatureHelp(model, at, {}))?.value;
+                }
             }
             if (role === 'writer') {
                 const at = set('𐐀name = 1\n𐐀');
@@ -151,18 +158,21 @@ try {
                 if (item) model.applyEdits([{ range: item.range, text: item.insertText }]);
                 output.unicodeCompleted = model.getValue();
             }
-            set('result={"value":1,"list":[1,2]}');
+            const returns = !role.endsWith('transformer');
+            const statement = returns ? 'return ' : 'value=';
+            output.returns = returns;
+            set(statement + '{"value":1,"list":[1,2]}');
             await editor.getAction('editor.action.formatDocument').run();
             output.document = model.getValue();
-            set('left=1\nresult={"value":1}\nright=2\n');
+            set('left=1\n' + statement + '{"value":1}\nright=2\n');
             editor.setSelection(new window.monaco.Range(2, 1, 3, 1));
             await editor.getAction('editor.action.formatSelection').run();
             output.selection = model.getValue();
             // A real request is issued before changing source: its eventual
             // formatting result must never overwrite the newer model version.
-            set('result={"value":1}');
+            set(returns ? 'return {"value":1}' : 'value={"value":1}');
             const pending = providers.format.provideDocumentFormattingEdits(model, {}, {});
-            set('result = "newer edit"');
+            set('value = "newer edit"');
             output.stale = await pending;
             output.afterStale = model.getValue();
             return output;
@@ -173,7 +183,17 @@ try {
         assert.ok(result.logger.includes('info') && result.logger.includes('error'), role + ': logger members');
         assert.ok(result.stdlib.includes('loads') && result.stdlib.includes('dumps'), role + ': standard library');
         assert.ok(result.globals.includes(global), role + ': role global');
+        assert.ok(!result.removedPoll.includes('poll'), role + ': removed poll global');
+        assert.ok(!result.removedResult.includes('result'), role + ': no result global');
+        assert.ok(result.sourceMap.includes('get'), role + ': source map reads');
+        const writeMethods = ['put', 'putAll', 'remove', 'update'];
+        if (role === 'reader') {
+            assert.ok(writeMethods.every(name => result.sourceMap.includes(name)), 'Reader writable sourceMap');
+            const label = result.sourceMapSignature?.signatures?.[0]?.label || '';
+            assert.ok(label.includes('key') && label.includes('value'), 'Reader sourceMap.put signature');
+        } else assert.ok(writeMethods.every(name => !result.sourceMap.includes(name)), role + ': read-only sourceMap');
         assert.ok(result.signature?.signatures?.length && result.hover?.contents?.length, role + ': signatures and hover');
+        if (result.blankLine) assert.ok(result.blankLine.includes(global), role + ': trailing blank line completion');
         if (result.response) assert.ok(['status', 'status_message', 'error'].every(name => result.response.includes(name)));
         if (role === 'reader' || role === 'writer') {
             const parameters = role === 'reader' ? ['payload', 'source_map', 'destination_ids'] : ['status', 'data', 'status_message', 'error'];
@@ -185,10 +205,10 @@ try {
             assert.deepEqual(result.unicodeRange, [1, 3]);
             assert.equal(result.unicodeCompleted, '𐐀name = 1\n𐐀name');
         }
-        assert.match(result.document, /result = /);
-        assert.match(result.selection, /^left=1\nresult = .*\nright=2\n$/);
+        assert.match(result.document, result.returns ? /return \{/ : /value = /);
+        assert.match(result.selection, result.returns ? /^left=1\nreturn .*\nright=2\n$/ : /^left=1\nvalue = .*\nright=2\n$/);
         assert.deepEqual(result.stale, []);
-        assert.equal(result.afterStale, 'result = "newer edit"');
+        assert.equal(result.afterStale, 'value = "newer edit"');
     }
     assert.deepEqual(errors, []);
     assert.deepEqual(await hashes(), before, 'Runtime assets must remain unchanged');

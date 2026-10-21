@@ -2,27 +2,27 @@
 
 For complete context-specific examples and JavaScript equivalents, see the [developer wiki](wiki/Home.md), especially [Functions, classes, and modules](wiki/Functions-classes-and-modules.md) and [Maps and values](wiki/Maps-and-values.md).
 
-The bundled `oie_python` SDK has no third-party dependencies. Every script type executes top-level Python statements with its available variables directly. There is no `ctx` object or automatic entry-point call. Imports and helper functions are allowed; functions run only when your code calls them. Validation compiles the script without evaluating imports or top-level code. Execution uses fresh script globals; imported modules can remain cached until the worker is recycled. Persist durable state outside the process.
+The bundled `oie_python` SDK has no third-party dependencies. Write the script body directly using the supplied context variables. Filters, Readers, Writers, and Python Functions support ordinary `return`; the runtime handles function execution internally, so no named entry point is required. A `return` exits immediately, with normal Python `finally` behavior. Transformer steps continue to mutate or replace `msg`/`tmp` and do not support a top-level `return`. There is no `ctx` object. Imports, classes, and helper functions are allowed; call your own helpers explicitly. Validation compiles the script without evaluating imports or top-level code. Execution uses fresh script globals; imported modules can remain cached until the worker is recycled. Persist durable state outside the process.
 
-All script types receive `logger`, `phase`, read-only `message` metadata, and the complete `globalMap`, `globalChannelMap`, and `configurationMap`. Filter, Reader, Writer, and Python Function scripts also receive `result`, initially `None`; assign it to produce their output. Leaving it unchanged or deleting it has the same effect as `None`, which is invalid for a filter.
+All script types receive `logger`, `phase`, read-only `message` metadata, and the complete `globalMap`, `globalChannelMap`, and `configurationMap`. Filter, Reader, Writer, and Python Function scripts return their output.
 
 | Context | Other available variables |
 | --- | --- |
-| Source / destination filter | `msg`, `has_tmp`, `tmp` when available, and `result` |
+| Source / destination filter | `msg`, `has_tmp`, `tmp` when available |
 | Source / destination transformer | `msg`, `has_tmp`, and `tmp` when a template exists |
 | Response transformer | Transformer variables plus `response` |
-| Reader | `poll`, `result` |
-| Writer | `payload`, `result` |
-| Python Function | `arguments`, `result` |
+| Reader | Writable invocation-local `sourceMap` |
+| Writer | `payload` |
+| Python Function | `arguments` |
 
 `message` contains metadata, not a live Java `connectorMessage`. The [map availability table](#maps) below covers all seven map variables.
 
 ## Filters
 
-Select a **Python** rule in a source or destination filter. The rule must assign exactly `True` or `False` to `result`; truthy strings, numbers, `None`, and other values are rejected. New rules start with `result = True`.
+Select a **Python** rule in a source or destination filter. An empty rule or execution that reaches the end accepts as `True`. An explicit return must be exactly `True` or `False`; truthy strings, numbers, `None`, and other values are rejected, including a bare `return`. New rules start with `return True`.
 
 ```python
-result = msg.get("active") is True and not msg.get("cancelled", False)
+return msg.get("active") is True and not msg.get("cancelled", False)
 ```
 
 The stock engine controls AND/OR precedence and short-circuit evaluation across Python and other rule types. A false overall source filter prevents destination processing; a false destination filter skips that destination. Exceptions and invalid results produce a filter error, rather than a normal rejection. There are no response filter rules. Iterator-nested Python rules are unsupported.
@@ -38,7 +38,7 @@ msg["validated"] = True
 channelMap.put("checked", True)
 ```
 
-The step also receives available `channelMap`, `connectorMap`, `sourceMap`, and `responseMap` objects. Response transformers additionally receive `response`. There is no automatic `output` alias; transformer output comes from `msg` and `tmp`, and assigning `result` has no effect. An empty step is a no-op.
+The step also receives available `channelMap`, `connectorMap`, `sourceMap`, and `responseMap` objects. Response transformers additionally receive `response`. There is no automatic `output` alias; transformer output comes from `msg` and `tmp`. An empty step is a no-op.
 
 Assigning `msg` or `tmp` replaces that document. Deleting either document, or assigning `tmp` when no template exists, is rejected. Change map keys or response fields through the supplied objects; rebinding a map, `response`, or another helper name only changes your script's local binding.
 
@@ -67,7 +67,7 @@ Response transformers expose `response.status`, `response.status_message`, and `
 
 ## Maps
 
-Maps use the existing JavaScript names directly; there is no selection step or extra context object. All script types receive every string-keyed entry in `globalMap`, `globalChannelMap`, and `configurationMap`. Filters, transformers, Writers, and Python Functions additionally receive `channelMap`, `connectorMap`, `sourceMap`, and `responseMap` from their current message. Readers have no per-message maps before producing their `Message` results.
+Maps use the existing JavaScript names directly; there is no selection step or extra context object. All script types receive every string-keyed entry in `globalMap`, `globalChannelMap`, and `configurationMap`. Filters, transformers, Writers, and Python Functions additionally receive `channelMap`, `connectorMap`, `sourceMap`, and `responseMap` from their current message. Readers also receive a fresh writable `sourceMap` for source values inherited by their returned `Message` results; they have no other per-message maps.
 
 | Variable | Filter / transformer / response transformer | Reader | Writer | Python Function | Access |
 | --- | --- | --- | --- | --- | --- |
@@ -76,10 +76,10 @@ Maps use the existing JavaScript names directly; there is no selection step or e
 | `configurationMap` | Yes | Yes | Yes | Yes | Read-only |
 | `channelMap` | Yes | — | Yes | Yes | Read/write |
 | `connectorMap` | Yes | — | Yes | Yes | Read/write |
-| `sourceMap` | Yes | — | Yes | Yes | Read-only |
+| `sourceMap` | Yes | Yes | Yes | Yes | Read/write in Reader; read-only downstream |
 | `responseMap` | Yes | — | Yes | Yes | Read/write |
 
-`globalMap`, `globalChannelMap`, `channelMap`, `connectorMap`, and `responseMap` are writable. `configurationMap` and `sourceMap` are read-only, matching the engine's script contexts. For example:
+`globalMap`, `globalChannelMap`, `channelMap`, `connectorMap`, and `responseMap` are writable. `configurationMap` is read-only. `sourceMap` is writable only in a Reader; downstream scripts receive it read-only. For example:
 
 ```python
 site = configurationMap.get('site')
@@ -96,7 +96,7 @@ The same objects support the ordinary Rhino map methods: `get`, `put`, `contains
 
 `responseMap.get('Destination name')` and `containsKey` resolve the engine's destination name to its `d<metadataId>` key. Its keys and size still describe the actual entries, and writes/removals use the literal key, as in Rhino. `channelMap.get` retains the engine's source-map fallback for missing channel entries and logs the engine's deprecation error; `containsKey` and `keySet` only report actual channel entries. Use `sourceMap.get` for source entries.
 
-CPython runs in a separate process, so each invocation reads snapshots. Changes to writable map entries are validated together with the script result, then written to the actual engine stores before the next step runs. A script exception or invalid result applies no map changes. Only changed keys are written; unrelated concurrent updates are preserved. Reads do not refresh during an invocation, and concurrent writes to the same key use the last committed value; read-modify-write counters are not atomic. These are meaningful differences from Rhino's live map access. Global stores are node-local and follow the engine's existing lifetime and redeployment behavior. They reject `None` values; use `.remove(key)` to remove a key. These maps do not expose Java objects or the engine's synchronized-store methods.
+CPython runs in a separate process, so each invocation reads snapshots. Changes to writable message/shared map entries are validated together with the script result, then written to the actual engine stores before the next step runs. A Reader's invocation-local `sourceMap` instead supplies defaults to each emitted message; it does not update shared storage. A script exception or invalid result applies no map changes. Only changed keys are written; unrelated concurrent updates are preserved. Reads do not refresh during an invocation, and concurrent writes to the same key use the last committed value; read-modify-write counters are not atomic. These are meaningful differences from Rhino's live map access. Global stores are node-local and follow the engine's existing lifetime and redeployment behavior. They reject `None` values; use `.remove(key)` to remove a key. These maps do not expose Java objects or the engine's synchronized-store methods.
 
 Synthetic Test accepts `globalMap`, `globalChannelMap`, and `configurationMap` in its sample JSON and previews changes without reading or modifying live shared stores. For message contexts, optional sample `destinationIdMap` maps destination names to integer metadata IDs so response-map name lookup can be tested; it is lookup metadata, not another script variable.
 
@@ -108,51 +108,53 @@ All scripts can use `logger.debug/info/warning/error`. `print()` and writes to s
 
 ## Reader
 
-Assign `result` to `None`, one `Message`, or a bounded list of `Message`. `None` or an empty list emits no messages; an empty string/bytes payload in a `Message` emits a real message. `poll` contains synthetic polling metadata. A Reader has no live per-message maps.
+Return `None`, one `Message`, or a bounded list of `Message`. `None` or an empty list emits no messages; an empty string/bytes payload in a `Message` emits a real message. A Reader receives a fresh writable `sourceMap` with `pollId` set to a new UUID in live execution, or `"sample"` in synthetic Test. There is no `poll` script global. Set entries through `sourceMap.put(...)` or `sourceMap["key"] = value`; rebinding `sourceMap` only changes the local name. Every returned `Message` inherits the final map values, and its own `source_map` overrides matching keys, including `pollId`. This map is not storage for later polls. It accepts supported values including `None`; invalid values or reserved keys fail validation even when returning `None` or `[]`.
 
 ```python
 from oie_python import Message
 
-result = Message('{"patient_id":"P123"}',
-                 source_map={"origin": "python-reader"},
-                 destination_ids=None)
+return Message(
+    '{"patient_id":"P123"}',
+    source_map={"origin": "python-reader"},
+    destination_ids=None,
+)
 ```
 
-`destination_ids=None` selects all enabled destinations; `[]` selects none; a list selects known numeric metadata IDs. Reserved source-map keys `destinationSet`, `batchId`, `batchComplete`, `batchSequenceId`, `reprocessed`, and `replaced` are rejected. Binary payloads use the engine's base64 representation and are forbidden with Process Batch enabled.
+`destination_ids=None` selects all enabled destinations; `[]` selects none; a list selects known numeric metadata IDs. Reserved keys in the Reader `sourceMap` and each `Message.source_map` (`destinationSet`, `batchId`, `batchComplete`, `batchSequenceId`, `reprocessed`, and `replaced`) are rejected. Binary payloads use the engine's base64 representation and are forbidden with Process Batch enabled.
 
-`Message` is the Python counterpart of the JavaScript Reader's `RawMessage`. Its `payload` becomes the engine's raw text or raw bytes, `destination_ids` becomes the destination metadata ID list, and `source_map` becomes the source map. Import `Message` from `oie_python`; no Java object or additional RawMessage wrapper is needed. Bare strings are not Reader results: wrap them in `Message(...)`.
+`Message` is the Python counterpart of the JavaScript Reader's `RawMessage`. Its `payload` becomes the engine's raw text or raw bytes, `destination_ids` becomes the destination metadata ID list, and `source_map` overrides the invocation defaults to form the source map. Import `Message` from `oie_python`; no Java object or additional RawMessage wrapper is needed. Bare strings are not Reader results: wrap them in `Message(...)`.
 
 The complete list and map changes are validated before the first dispatch. Shared map changes commit before dispatch; an admission failure does not roll them back. The worker is released before engine admission, and each dispatch is finalized. If a later admission fails, earlier messages remain admitted and the poll reports partial completion. The toolkit does not replay the list or acknowledge/checkpoint an external source automatically.
 
 ## Writer
 
-`payload` is the outgoing engine string, or `None` when no payload is available. Assign `result` to `None` for SENT with empty data, a string for SENT with that data, an explicit `Response`, or a bare `Status` for that status with empty data. Dictionaries and bytes are rejected; serialize JSON yourself.
+`payload` is the outgoing engine string, or `None` when no payload is available. Return `None` for SENT with empty data, a string for SENT with that data, an explicit `Response`, or a bare `Status` for that status with empty data. Dictionaries and bytes are rejected; serialize JSON yourself.
 
 ```python
 from oie_python import Response, Status
 
 # Perform your operation using payload.
-result = Response(status=Status.SENT, data="accepted", status_message="Completed")
+return Response(status=Status.SENT, data="accepted", status_message="Completed")
 ```
 
 `Response` maps `status`, `data`, `status_message`, and `error` to the engine response's status, message, status message, and error fields. Its text fields accept strings or `None` (`None` becomes empty text in the engine). Statuses are SENT, ERROR, or QUEUED, supplied as strings or `Status` members. Other engine lifecycle statuses are not valid Writer results.
 
-For a status-only result, use `result = Status.ERROR` (or `Status.SENT` / `Status.QUEUED`). A plain string such as `result = "ERROR"` remains a SENT response with that string as its data. QUEUED becomes ERROR when queueing is disabled. The Java adapter applies effective engine response-validation settings and releases its worker before response transformation.
+For a status-only result, use `return Status.ERROR` (or `Status.SENT` / `Status.QUEUED`). A plain string such as `return "ERROR"` remains a SENT response with that string as its data. QUEUED becomes ERROR when queueing is disabled. The Java adapter applies effective engine response-validation settings and releases its worker before response transformation.
 
 The engine can immediately retry ERROR or QUEUED according to the destination's retry count. Its asynchronous queue retries QUEUED responses; ERROR alone does not request queueing. A timeout after external I/O has an uncertain outcome. Use the available message/destination identity with target-supported idempotency, including manual reprocessing. The toolkit never silently re-executes an invocation on a replacement worker.
 
 ## Callable Python code templates
 
-The web Administrator's **Python Function** template reads `arguments` and assigns `result`:
+The web Administrator's **Python Function** template reads `arguments` and returns a JSON-compatible value:
 
 ```python
 patient = arguments[0]
-result = {"id": patient["id"], "name": patient["name"].strip()}
+return {"id": patient["id"], "name": patient["name"].strip()}
 ```
 
 Set its JavaScript function name to `normalize_patient`, enable its library for the consuming channel, and deploy that channel. A JavaScript filter or transformer can then call `normalize_patient({id: '123', name: ' Example '})`. The return value is a native JavaScript JSON value. The engine's RAW string is accepted directly. Convert E4X XML explicitly, for example `normalize_xml(msg.toXMLString())`.
 
-`arguments` contains the positional JSON arguments. `message` metadata is read-only; `phase`, `logger`, the calling message's maps, and the shared maps are also available. A function can change writable map entries but does not receive `msg` or `tmp`. Assign a value to `result` and explicitly apply the returned document value in the calling JavaScript. Map changes are committed only after a valid JSON result. Leaving `result` as `None` returns JSON null. Arguments and results support null, booleans, strings, finite numbers, arrays and objects with string keys. Cycles, undefined, callables, non-JSON objects, non-finite numbers, and integers beyond JavaScript's safe range are rejected. Python exceptions and invalid results fail the calling script; external I/O performed by user code cannot be rolled back.
+`arguments` contains the positional JSON arguments. `message` metadata is read-only; `phase`, `logger`, the calling message's maps, and the shared maps are also available. A function can change writable map entries but does not receive `msg` or `tmp`. Return a value and explicitly apply the returned document value in the calling JavaScript. Map changes are committed only after a valid JSON result. Returning `None` or falling through returns JSON null. Arguments and results support null, booleans, strings, finite numbers, arrays and objects with string keys. Cycles, undefined, callables, non-JSON objects, non-finite numbers, and integers beyond JavaScript's safe range are rejected. Python exceptions and invalid results fail the calling script; external I/O performed by user code cannot be rolled back.
 
 Supported contexts are source filter/transformer, destination filter/transformer, and destination response transformer. The runtime ignores other selected contexts. A template with no selected context is not bound. Global/channel lifecycle scripts, Readers and Writers cannot call Python templates. Each enabled template is captured at channel deployment with its source, execution digest and prepared environment lease. A template that cannot bind does not stop the channel deployment. For example, its environment is not ready on the node, or its source does not compile. A call to that function fails and reports the reason. Correct the cause, then redeploy. Saving a template does not change an already deployed channel. Redeploy to adopt saved changes. If a concurrent template save changes a function snapshot while the stock engine compiles the channel, deployment fails before the channel starts. Retry deployment after template saves finish.
 

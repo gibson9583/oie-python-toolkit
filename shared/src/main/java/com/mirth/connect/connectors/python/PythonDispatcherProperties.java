@@ -33,7 +33,7 @@ public class PythonDispatcherProperties extends ConnectorProperties
     public PythonDispatcherProperties() {
         setPluginProperties(new HashSet<>());
         destinationConnectorProperties = new DestinationConnectorProperties(false);
-        pythonScript = "";
+        pythonScript = "return None\n";
         environmentProfileId = PythonContract.DEFAULT_PROFILE_ID;
         environmentNameHint = PythonContract.DEFAULT_PROFILE_NAME;
         timeoutMillis = PythonContract.DEFAULT_TIMEOUT_MILLIS;

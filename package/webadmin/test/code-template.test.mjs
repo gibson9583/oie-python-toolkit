@@ -23,7 +23,7 @@ test('Python templates serialize a plugin class and function behavior without st
     const value = subject();
     assert.equal(value['@class'], TEMPLATE_CLASS); assert.equal(value['@version'], '4.6.0');
     assert.equal(value.type, 'FUNCTION'); assert.equal(value.functionName, 'Normalize_patient');
-    assert.equal(value.pythonScript, 'result = arguments[0] if arguments else None\n');
+    assert.equal(value.pythonScript, 'return arguments[0] if arguments else None\n');
     assert.equal(Object.hasOwn(value, 'code'), false);
     assert.deepEqual(templateContexts({ contextSet: { delegate: { contextType: TEMPLATE_CONTEXTS[0] } } }), [TEMPLATE_CONTEXTS[0]]);
     assert.deepEqual(templateContexts({ contextSet: { delegate: { contextType: TEMPLATE_CONTEXTS } } }), TEMPLATE_CONTEXTS);
@@ -41,10 +41,10 @@ test('template guards reject invalid names and unsupported imported contexts wit
 });
 
 test('template spec includes the function name and role and normalizes source without selectors', () => {
-    const value = { ...subject(), pythonScript: '# Result\r\nresult = None\r' };
+    const value = { ...subject(), pythonScript: '# Result\r\nreturn None\r' };
     const spec = JSON.parse(canonicalTemplateSpec(value));
     assert.deepEqual(Object.keys(spec), ['canonicalization', 'contractVersion', 'functionName', 'kind', 'profileId', 'source', 'timeoutMillis']);
-    assert.equal(spec.kind, 'code-template'); assert.equal(spec.source, '# Result\nresult = None\n');
+    assert.equal(spec.kind, 'code-template'); assert.equal(spec.source, '# Result\nreturn None\n');
     assert.equal(Object.hasOwn(spec, 'contextInputs'), false);
     assert.notEqual(sha256(canonicalTemplateSpec(value)), sha256(canonicalTemplateSpec({ ...value, functionName: 'other' })));
 });

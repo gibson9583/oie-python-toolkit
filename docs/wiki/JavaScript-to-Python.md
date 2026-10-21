@@ -6,20 +6,20 @@ Python scripts run in CPython workers outside the engine JVM. The toolkit carrie
 
 ## Start with the script's job
 
-Write top-level Python statements in the editor. There is no automatically supplied `ctx`, no required `main()`, and no automatic function invocation. Imports, functions, and classes are ordinary Python; call helpers yourself. A top-level JavaScript `return` becomes an assignment to `result` only for surfaces that consume a result. A Python `return` belongs inside a function.
+Write the Python script body in the editor. Filters, Readers, Writers, and Python Functions support ordinary `return`; the runtime handles function execution internally. No `ctx` or named entry point is required. Imports, functions, and classes are ordinary Python; call helpers yourself. Transformer steps edit `msg`/`tmp` and do not support top-level `return`.
 
 | JavaScript surface or task | Python surface and output | Small working example |
 | --- | --- | --- |
-| Source filter rule: `return msg.active === true;` | Python filter; assign an exact boolean | `result = msg.get("active") is True` for a JSON object |
-| Destination filter rule | Same filter contract; rejection skips this destination | `result = sourceMap.get("origin") == "trusted"` |
+| Source filter rule: `return msg.active === true;` | Python filter; return an exact boolean | `return msg.get("active") is True` for a JSON object |
+| Destination filter rule | Same filter contract; rejection skips this destination | `return sourceMap.get("origin") == "trusted"` |
 | Source transformer step | Change `msg`, `tmp` when available, or writable maps | `msg["checked"] = True` for a JSON object |
 | Destination transformer step | Same document contract; an outbound template makes `tmp` the outgoing document | `if has_tmp: tmp["checked"] = True` for a JSON template |
 | Response transformer | Change response document and/or the supplied response fields | `response.status_message = "Validated"` |
-| JavaScript Reader returning raw message data | Python Reader; assign `Message`, a list of `Message`, or `None` | `from oie_python import Message` then `result = Message("hello")` |
-| JavaScript Writer returning a response | Python Writer; assign `None`, `str`, `Status`, or `Response` | `from oie_python import Status` then `result = Status.SENT` |
-| Callable JavaScript code template | Python Function template; read JSON `arguments`, assign JSON-compatible `result` | `result = {"name": arguments[0]["name"].strip()}` |
+| JavaScript Reader returning raw message data | Python Reader; return `Message`, a list of `Message`, or `None` | `from oie_python import Message` then `return Message("hello")` |
+| JavaScript Writer returning a response | Python Writer; return `None`, `str`, `Status`, or `Response` | `from oie_python import Status` then `return Status.SENT` |
+| Callable JavaScript code template | Python Function template; read JSON `arguments`, return a JSON-compatible value | `return {"name": arguments[0]["name"].strip()}` |
 
-A transformer ignores a local `result` variable. A filter does not accept `1`, `"true"`, `None`, or another truthy value as its result. A Writer rejects a dict result unless you serialize it to text. A Reader rejects a bare string unless you wrap it in `Message`. See [Filters and transformers](Filters-and-transformers.md), [Connectors](Connectors.md), and [Functions, classes, and modules](Functions-classes-and-modules.md) for complete examples and failure behavior.
+An empty filter or fallthrough accepts as `True`. An explicit filter return must be boolean; `1`, `"true"`, `None`, and a bare `return` are invalid. A Writer rejects a dict result unless you serialize it to text. A Reader rejects a bare string unless you wrap it in `Message`. See [Filters and transformers](Filters-and-transformers.md), [Connectors](Connectors.md), and [Functions, classes, and modules](Functions-classes-and-modules.md) for complete examples and failure behavior.
 
 ## Map shortcuts
 
@@ -31,7 +31,7 @@ The engine generates JavaScript helper functions such as `$c`; `$` is not valid 
 | `$gc('lastId')`, `$gc('lastId', 'P123')` | `globalChannelMap.get("lastId")` | `globalChannelMap.put("lastId", "P123")` |
 | `$c('patientId')`, `$c('patientId', 'P123')` | `channelMap.get("patientId")` | `channelMap.put("patientId", "P123")` |
 | `$co('requestId')`, `$co('requestId', 'R1')` | `connectorMap.get("requestId")` | `connectorMap.put("requestId", "R1")` |
-| `$s('origin')` | `sourceMap.get("origin")` | Read-only in Python. In a Reader, set `Message("hello", source_map={"origin": "poller"})` for a newly emitted message. |
+| `$s('origin')` | `sourceMap.get("origin")` | Read-only downstream. In a Reader, set `sourceMap.put("origin", "poller")` for all emitted messages, or `Message("hello", source_map={"origin": "poller"})` for a per-message override. |
 | `$r('Destination name')` | `responseMap.get("Destination name")` | `responseMap.put("applicationReceipt", "accepted")` writes that literal key; a read of an engine response can yield an unsupported-value sentinel. |
 | `$cfg('site')` | `configurationMap.get("site")` | Read-only. Change engine configuration through its administrative facilities, then read it here. |
 | `$('patientId')` | Prefer `channelMap.get("patientId")` when the owning map is known | No automatic generic lookup helper; the explicit compatibility helper below implements the available-map search order. |
@@ -52,7 +52,7 @@ def lookup(key):
 patient_id = lookup("patientId")
 ```
 
-In a Reader use only `(globalChannelMap, globalMap, configurationMap)` in that loop. The stock JavaScript helper also checks a legacy `resultMap` after configuration; Python does not inject `resultMap`, so that part has no automatic equivalent. There is no need to catch errors from every map: availability is defined by context. [Maps and values](Maps-and-values.md) explains response-name aliases, deprecated source fallback, snapshots, and concurrency.
+In a Reader use `(sourceMap, globalChannelMap, globalMap, configurationMap)` in that loop. The stock JavaScript helper also checks a legacy `resultMap` after configuration; Python does not inject `resultMap`, so that part has no automatic equivalent. There is no need to catch errors from every map: availability is defined by context. [Maps and values](Maps-and-values.md) explains response-name aliases, deprecated source fallback, snapshots, and concurrency.
 
 ## `msg`: JSON, E4X, and RAW
 
@@ -81,7 +81,7 @@ Nested JSON edits are detected. Assigning `msg = {"accepted": True}` replaces th
 ```python
 import json
 
-result = json.dumps({"accepted": True}, ensure_ascii=False, allow_nan=False)
+return json.dumps({"accepted": True}, ensure_ascii=False, allow_nan=False)
 ```
 
 JSON transformer documents and Python Function arguments/results require finite numbers and integers within ±9,007,199,254,740,991. Preserve larger identifiers as strings before the JavaScript boundary. Map transport has a separate signed-64-bit integer contract; see [Maps and values](Maps-and-values.md).
@@ -139,7 +139,7 @@ Python's `message` is a read-only mapping of metadata, not a Java `connectorMess
 | `connectorMessage.getSendAttempts()` | `message["send_attempts"]` | Send attempt count supplied for this invocation |
 | `connectorMessage.getReceivedDate()` | `message.get("received_date")` | Optional ISO instant string, rather than a Java date |
 
-Readers have channel/connector identity only: `channel_id`, `channel_name`, `connector_name`, and `metadata_id`. They do not have a per-message ID before emitting messages. Reader `poll["id"]` identifies this poll, not a durable source checkpoint. Synthetic Test uses fixed metadata that cannot be overridden in sample JSON. Use `.get` defaults where appropriate, and test metadata-dependent behavior in an isolated deployed channel.
+Readers have channel/connector identity only: `channel_id`, `channel_name`, `connector_name`, and `metadata_id`. They do not have a per-message ID before emitting messages. Reader `sourceMap.get("pollId")` starts as a live invocation UUID, not a durable source checkpoint. Synthetic Test starts with `pollId: "sample"`. The Reader map is writable and invocation-local, and its final values are inherited by each returned `Message`. `Message.source_map` overrides matching entries, including `pollId`. There is no `poll` script global. Synthetic `message` metadata is fixed and cannot be overridden in sample JSON. Use `.get` defaults where appropriate, and test metadata-dependent behavior in an isolated deployed channel.
 
 ```python
 # Writer: an identity suitable for a target-supported idempotency key.
@@ -174,7 +174,7 @@ try:
 except json.JSONDecodeError as exc:
     logger.error("Outgoing JSON is malformed: %s", exc)
     raise
-result = json.dumps(document, ensure_ascii=False, allow_nan=False)
+return json.dumps(document, ensure_ascii=False, allow_nan=False)
 ```
 
 `print()` and stdout/stderr writes become captured stdout records, forwarded at INFO. Logs are bounded, can be truncated, and follow the engine's logging configuration. Avoid logging full clinical payloads or credentials.
@@ -186,21 +186,21 @@ A JavaScript Reader's `new RawMessage(...)` concept becomes the SDK's `Message`;
 ```python
 from oie_python import Message
 
-result = Message(
+return Message(
     '{"patientId":"P123"}',
     source_map={"origin": "python-reader", "sourceId": "external-123"},
     destination_ids=None,
 )
 ```
 
-`destination_ids=None` selects all enabled destinations; `[]` selects none. A list selects enabled numeric metadata IDs, not destination names. `source_map` initializes source entries for this new message; it cannot set the reserved engine keys `destinationSet`, `batchId`, `batchComplete`, `batchSequenceId`, `reprocessed`, or `replaced`. `Message(b"binary")` is allowed with Process Batch disabled. Attachments, original-message IDs, and import/overwrite flags are not Message fields.
+`destination_ids=None` selects all enabled destinations; `[]` selects none. A list selects enabled numeric metadata IDs, not destination names. `source_map` overrides the supplied Reader `sourceMap` defaults for this new message; it cannot set the reserved engine keys `destinationSet`, `batchId`, `batchComplete`, `batchSequenceId`, `reprocessed`, or `replaced`. `Message(b"binary")` is allowed with Process Batch disabled. Attachments, original-message IDs, and import/overwrite flags are not Message fields.
 
 A Writer's JavaScript `new Response(...)` becomes an imported Python `Response` with named Python fields:
 
 ```python
 from oie_python import Response, Status
 
-result = Response(
+return Response(
     status=Status.SENT,
     data="accepted",
     status_message="Delivery completed",
@@ -208,7 +208,7 @@ result = Response(
 )
 ```
 
-`data` maps to the engine response message. `status_message` maps to its short status message; `error` maps to error details. Text fields accept `str` or `None`. Use `Status.SENT`, `Status.ERROR`, or `Status.QUEUED`; no other lifecycle statuses are accepted. `result = Status.ERROR` is an error status with empty data. `result = "ERROR"` is a successful SENT response whose data is the text `ERROR`. QUEUED becomes ERROR if destination queueing is disabled. Engine retry settings still apply, so external writes need a deliberate retry/idempotency strategy.
+`data` maps to the engine response message. `status_message` maps to its short status message; `error` maps to error details. Text fields accept `str` or `None`. Use `Status.SENT`, `Status.ERROR`, or `Status.QUEUED`; no other lifecycle statuses are accepted. `return Status.ERROR` is an error status with empty data. `return "ERROR"` is a successful SENT response whose data is the text `ERROR`. QUEUED becomes ERROR if destination queueing is disabled. Engine retry settings still apply, so external writes need a deliberate retry/idempotency strategy.
 
 A response transformer uses its existing `response` object instead of returning a Writer result:
 
@@ -259,7 +259,7 @@ External packages must be installed through the toolkit's prepared environment w
 
 ## Migration checks
 
-1. Identify the surface and assign its correct output: document, boolean, message envelope, response, or JSON function result.
+1. Identify the surface and produce its correct output: document, boolean, message envelope, response, or JSON function result.
 2. Replace `$` shortcuts with explicit maps and review missing-key/null handling.
 3. Identify each Java/E4X/helper dependency and select a supported replacement; retain engine-specific work where its API exists.
 4. Convert custom objects, datetimes, sets, bytes-in-JSON, and large JSON integers explicitly before returning.

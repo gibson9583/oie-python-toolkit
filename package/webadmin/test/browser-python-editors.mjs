@@ -179,7 +179,7 @@ try {
     await page.waitForTimeout(150);
     assert.equal(await page.locator('.suggest-widget.visible .monaco-list-row').filter({ hasText: 'channelMap' }).count(), 0);
     await page.keyboard.press('Escape');
-    await setSource(page, 'result = arguments[0]\n');
+    await setSource(page, 'return arguments[0]\n');
     await page.screenshot({ path: resolve(art, 'python-editors-desktop.png'), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -247,7 +247,7 @@ try {
     const permissionGate = new Promise(done => { releaseGrammar = done; });
     await permission.route('**/plugins/python-runtime/web/python-language.json*', async route => { await permissionGate; await route.continue(); });
     await show(permission, 'template', {}, false);
-    await permission.locator('.ce-area').fill('result = "preserved"');
+    await permission.locator('.ce-area').fill('return "preserved"');
     await permission.evaluate(() => {
         window.removedEditor = window.lastEditor;
         window.showPanel('template', { readOnly: true, subject: { ...window.subject } });
@@ -255,7 +255,7 @@ try {
     releaseGrammar(); releaseGrammar = null;
     await permission.waitForFunction(() => window.lastEditor?.monaco?.getModel()?.getLanguageId() === 'python');
     assert.equal(await permission.evaluate(() => !!window.removedEditor.monaco), false);
-    assert.equal(await source(permission), 'result = "preserved"');
+    assert.equal(await source(permission), 'return "preserved"');
     assert.equal(await permission.evaluate(() => window.lastEditor.monaco.getOption(window.monaco.editor.EditorOption.readOnly)), true);
     assert.equal(await permission.locator('.ce-monaco').count(), 1);
     checks.push('read-only transition during grammar load preserves the draft and disposes the editable instance');

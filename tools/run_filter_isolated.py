@@ -31,7 +31,7 @@ def scenario(api, child, profile, ingress, evidence, receipt):
     sample = {'requestId': str(uuid.uuid4()), 'environmentProfileId': profile['id'],
         'expectedRegistryEpoch': selected['registryEpoch'], 'expectedEnvironmentRevision': selected['revision'],
         'expectedNodeId': runtime['nodeId'], 'role': 'source-filter', 'contractVersion': 1, 'timeoutMillis': 30000,
-        'pythonScript': "channelMap['sample'] = True\nresult = False",
+        'pythonScript': "channelMap['sample'] = True\nreturn False",
         'sampleContext': {'msg': {'kind': 'raw', 'text': 'sample'}}}
     preview = api.call('/extensions/python-runtime/scripts/test', 'POST', sample)
     write(evidence / 'sample-filter-preview.json', preview)
@@ -49,7 +49,7 @@ def scenario(api, child, profile, ingress, evidence, receipt):
             connector = model.find('sourceConnector' if metadata == 0 else 'destinationConnectors/connector')
             rules = connector.find('filter/elements')
             rules.clear()
-            source = "logger.info('filter-qualified')\nchannelMap['filterSeen'] = True\nmsg += '|filter'\nresult = True"
+            source = "logger.info('filter-qualified')\nchannelMap['filterSeen'] = True\nmsg += '|filter'\nreturn True"
             expected_status = 'TRANSFORMED' if metadata == 0 else 'SENT'
             expected_response = 'input|filter'
             payload = 'input'
@@ -68,29 +68,31 @@ def scenario(api, child, profile, ingress, evidence, receipt):
                         element(serialization, 'stripNamespaces', 'false')
                 if case == 'json':
                     payload = '{"trace":["input"]}'
-                    source = "msg['trace'].append('filter')\nchannelMap['ordered'] = True\nresult = True"
+                    source = "msg['trace'].append('filter')\nchannelMap['ordered'] = True\nreturn True"
                     transformer.find('elements').append(javascript_step("if (!channelMap.get('ordered')) throw 'Filter ran too late'; msg.trace.push('transformer');", 'Following transformer'))
                     expected_response = {'trace': ['input', 'filter', 'transformer']}
                 elif case == 'xml':
                     payload = '<root><input/></root>'
-                    source = "msg = '<root><input/><filter/></root>'\nresult = True"
+                    source = "msg = '<root><input/><filter/></root>'\nreturn True"
                     transformer.find('elements').append(javascript_step("msg.appendChild(new XML('<transformer/>'));", 'Following transformer'))
                     expected_response = None
                 else:
                     payload = '<root/>'
-                    source = "connectorMap['partial'] = 'must-not-apply'\nmsg = '<broken>'\nresult = True"
+                    source = "connectorMap['partial'] = 'must-not-apply'\nmsg = '<broken>'\nreturn True"
                     expected_status = 'ERROR'
             elif case == 'false-mutation':
-                source = "msg += '|false'\nchannelMap['falseMarker'] = 'false-applied'\nresult = False"
+                source = "msg += '|false'\nchannelMap['falseMarker'] = 'false-applied'\nreturn False"
                 expected_status = 'FILTERED'
             elif case == 'same-source':
-                source = "msg += '|shared'\nresult = True"
+                # Reuse a helper and mutation body across the two roles.
+                source = "def accept():\n    return True\nmsg += '|shared'"
                 transformer.find('elements').append(step(profile['id'], source, 'Same source transformer'))
+                source += "\nreturn accept()"
                 expected_response = 'input|shared|shared'
             elif case == 'function-step':
-                source = "msg += '|filter'\nresult = True"
+                source = "msg += '|filter'\nreturn True"
                 template_id, library_id = str(uuid.uuid4()), str(uuid.uuid4())
-                template = make_template(template_id, "result = arguments[0] + '|function'")
+                template = make_template(template_id, "return arguments[0] + '|function'")
                 write(folder / 'template-save.json', api.call('/codeTemplates/' + template_id, 'PUT', template))
                 library = {'list': {'codeTemplateLibrary': [{'@version': '4.6.0', 'id': library_id,
                     'name': 'Python filter mixed phase', 'revision': 0, 'includeNewChannels': False,
@@ -100,8 +102,8 @@ def scenario(api, child, profile, ingress, evidence, receipt):
                 transformer.find('elements').append(step(profile['id'], "msg += '|step'", 'Python step'))
                 transformer.find('elements').append(javascript_step('msg = python_function(msg);', 'Python Function call'))
                 expected_response = 'input|filter|step|function'
-            if case == 'reject': source = 'result = False'; expected_status = 'FILTERED'
-            elif case == 'nonbool': source = "channelMap['partial'] = 'must-not-apply'\nresult = 1"; expected_status = 'ERROR'
+            if case == 'reject': source = 'return False'; expected_status = 'FILTERED'
+            elif case == 'nonbool': source = "channelMap['partial'] = 'must-not-apply'\nreturn 1"; expected_status = 'ERROR'
             elif case == 'exception': source = "raise ValueError('filter failure')"; expected_status = 'ERROR'
             elif case in ('short-and', 'short-or'):
                 first = 'false' if case == 'short-and' else 'true'
@@ -111,7 +113,7 @@ def scenario(api, child, profile, ingress, evidence, receipt):
                 expected_response = 'input'
             elif case == 'mixed-not':
                 rules.append(rule("channelMap.put('before', 'yes'); return true;", profile['id'], python=False))
-                source = "assert channelMap['before'] == 'yes'\nresult = not False\nmsg += '|filter'"
+                source = "assert channelMap['before'] == 'yes'\nmsg += '|filter'\nreturn not False"
             elif case == 'disabled':
                 rules.append(rule("raise AssertionError('disabled')", profile['id'], enabled=False))
                 expected_response = 'input'

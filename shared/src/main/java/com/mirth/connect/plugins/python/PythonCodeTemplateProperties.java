@@ -9,7 +9,7 @@ import com.mirth.connect.model.codetemplates.CodeTemplateProperties;
 public class PythonCodeTemplateProperties extends CodeTemplateProperties implements PythonScriptConfiguration {
     public static final String PLUGIN_POINT = "Python Function";
     private String functionName = "python_function";
-    private String pythonScript = "result = arguments[0] if arguments else None\n";
+    private String pythonScript = "return arguments[0] if arguments else None\n";
     private String environmentProfileId = PythonContract.DEFAULT_PROFILE_ID;
     private String environmentNameHint = PythonContract.DEFAULT_PROFILE_NAME;
     private int timeoutMillis = PythonContract.DEFAULT_TIMEOUT_MILLIS;

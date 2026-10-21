@@ -2,7 +2,7 @@
 
 Python filter rules and transformer steps, reusable **Python Function** code templates, a polling **Python Reader**, a **Python Writer**, and shared dependency profiles for Open Integration Engine. The extension is named **Python Runtime** in the engine's extension manager; the administrator settings page is **Script Environments**.
 
-All Python script types execute top-level statements with their available variables directly. There is no `ctx` object or automatic entry-point call. Scripts run in persistent CPython processes. Each deployed script binds to one immutable prepared environment. Saving or preparing a profile does not change a running channel; redeploy to adopt a new script or dependency lock. Queued sends use the current deployed Writer, with the engine's existing transformer and retry options.
+Write the script body directly using the supplied context variables. Filters, Readers, Writers, and Python Functions support ordinary `return`; the runtime handles function execution internally, so no named entry point is required. A `return` exits immediately, with normal Python `finally` behavior. Transformer steps continue to mutate or replace `msg`/`tmp` and do not support a top-level `return`. There is no `ctx` object. Scripts run in persistent CPython processes. Each deployed script binds to one immutable prepared environment. Saving or preparing a profile does not change a running channel; redeploy to adopt a new script or dependency lock. Queued sends use the current deployed Writer, with the engine's existing transformer and retry options.
 
 ## Developer wiki
 
@@ -31,12 +31,12 @@ For additional dependencies or a specific interpreter, configure optional policy
 ## First channel
 
 1. Add a **Python** filter rule or transformer step, or select a **Python Reader/Writer** connector. The built-in vanilla environment is selected automatically; wait for its automatic preparation to reach **Ready**.
-2. Write your script and validate it. **Test** executes the script against synthetic samples; it can still perform the external I/O your script contains. New filter rules start with `result = True`; Python Function code templates also contain starter code. Other Python editors start empty.
+2. Write your script and validate it. **Test** executes the script against synthetic samples; it can still perform the external I/O your script contains. New filter rules start with `return True`; Python Function code templates also contain starter code. Other Python editors start empty.
 3. Deploy. For additional packages, create a separate profile in **Settings → Script Environments**, select its approved runtime and source, save and prepare it, then select it in the editor. Later dependency changes require preparation and redeployment of consuming channels.
 
 The runtime identifies the installed Python interpreter; the package source identifies where preparation obtains dependency packages. New environments select the sole available runtime and sole configured package source automatically. A single matching option is shown directly; multiple options remain selectable. Saved selections are preserved when engine configuration changes. Preparation and script output appear in bounded, scrollable panels.
 
-Python receives the complete maps directly under the same names used in JavaScript: `globalMap`, `globalChannelMap`, and `configurationMap`, plus `sourceMap`, `channelMap`, `connectorMap`, and `responseMap` when a message is available. Use familiar methods such as `.get`, `.put`, `.containsKey`, and `.remove` on those objects. No shared-input selection is required. Global and global-channel maps are writable; configuration and source maps are read-only, as in the engine's JavaScript contexts. Readers receive the shared maps before they create messages. See the [context table and Rhino map semantics](docs/sdk.md#maps), including the remaining differences from live Rhino objects.
+Python receives the complete maps directly under the same names used in JavaScript: `globalMap`, `globalChannelMap`, and `configurationMap`, plus `sourceMap`, `channelMap`, `connectorMap`, and `responseMap` when a message is available. Use familiar methods such as `.get`, `.put`, `.containsKey`, and `.remove` on those objects. No shared-input selection is required. Global and global-channel maps are writable; configuration maps and downstream source maps are read-only. Readers receive the shared maps and a fresh writable `sourceMap` before they create messages. Set entries on it to supply source values to every returned `Message`; each `Message.source_map` overrides those defaults for that message. A live Reader starts with `sourceMap.get('pollId')` set to an invocation UUID. The Reader source map is local to that invocation, not storage for later polls. See the [context table and Rhino map semantics](docs/sdk.md#maps), including the remaining differences from live Rhino objects.
 
 Transformer steps use `msg`, `tmp` when an outbound template exists, and the available maps directly:
 
@@ -46,26 +46,26 @@ channelMap.put("patient_id", msg["patient_id"])
 globalChannelMap.put("last_patient_id", msg["patient_id"])
 ```
 
-Use `has_tmp` before accessing `tmp`. All script types can use `logger.debug/info/warning/error` and `print()` for captured output; live `print()` output is forwarded to the engine log at INFO. Readers assign a `Message` or list of messages to `result`. Writers use `payload` and assign a string, `Response`, or `Status` to `result`. Leaving `result` as `None` emits no Reader messages and gives an empty SENT Writer response.
+Use `has_tmp` before accessing `tmp`. All script types can use `logger.debug/info/warning/error` and `print()` for captured output; live `print()` output is forwarded to the engine log at INFO. Readers return a `Message`, a list of messages, or `None`. Writers use `payload` and return a string, `Response`, `Status`, or `None`. Returning `None` emits no Reader messages and gives an empty SENT Writer response.
 
 ## Python filters
 
-Add a **Python** rule to a source or destination filter. It receives `msg` and the available maps, like a transformer, and must assign a boolean to `result`:
+Add a **Python** rule to a source or destination filter. It receives `msg` and the available maps, like a transformer, and accepts the rule when execution reaches the end. Return a boolean to choose explicitly:
 
 ```python
-result = msg.get("active") is True
+return msg.get("active") is True
 ```
 
-The engine combines rules using the filter's existing AND/OR operators and short-circuit order. Use Python `not` to negate a condition. A false filter rejects the message at that connector; a script error or a non-boolean result fails the filter. New rules default to `result = True`. Filters run before transformer steps, so check `has_tmp` before using any outbound template.
+The engine combines rules using the filter's existing AND/OR operators and short-circuit order. Use Python `not` to negate a condition. A false filter rejects the message at that connector; a script error or a non-boolean result fails the filter. New rules start with `return True`; an empty body or fallthrough also accepts. Explicit `return None` or a bare `return` is invalid. Filters run before transformer steps, so check `has_tmp` before using any outbound template.
 
 See the [SDK contract and examples](docs/sdk.md) for templates, XML, Reader messages, Writer responses, and map values.
 
 ## Reusable Python functions
 
-In **Code Templates**, create a template and select **Python Function**. Choose its JavaScript function name and script environment, then use `arguments` and assign `result`:
+In **Code Templates**, create a template and select **Python Function**. Choose its JavaScript function name and script environment, then use `arguments` and return a JSON-compatible value:
 
 ```python
-result = str(arguments[0]).strip().upper()
+return str(arguments[0]).strip().upper()
 ```
 
 For a function named `normalize_patient`, call `normalize_patient(value)` from JavaScript in a source, destination, or response transformer. Arguments and the return value must be JSON-compatible. The function receives its calling message's maps and the complete shared maps using the same names as JavaScript. It can update writable map entries; assign its returned document value explicitly.

@@ -32,7 +32,7 @@ If Monaco or its grammar cannot load, the editable text fallback preserves the s
 | Action | What it establishes | What it does not establish |
 | --- | --- | --- |
 | Save draft | The authored configuration is retained | Environment readiness or executable behavior |
-| Validate Python | Source compiles; request/context/function-name rules and selected environment checks pass | Imports succeed; runtime values satisfy result contracts; external systems are reachable |
+| Validate Python | Source compiles under its context rules (including `return` in filters, Readers, Writers, and Functions); request/function-name and selected environment checks pass | Imports succeed; runtime values satisfy result contracts; external systems are reachable |
 | Test sample | Executes this script using a synthetic context and reports output/maps/logs | Real channel routing, downstream transforms, response validation, queue retries, or end-to-end delivery |
 | Deploy | Captures the channel's script/environment bindings | Every optional Python Function is available; all future inputs succeed |
 | Controlled live-channel exercise | Observes actual engine behavior for the tested inputs/settings | Untested data shapes, platforms, failures, and concurrency cases |
@@ -56,7 +56,7 @@ Native channel restrictions and code-template management permissions are additio
 
 ## Sample contexts
 
-The sample input is a JSON object, not Python source. Omitted maps default to empty synthetic maps. Use the field names below exactly. Sample metadata is synthetic; it is not proof that the same key exists in every live context. In particular, a Reader has no live message ID, and its sample `poll` contains `sample: true` instead of the live poll's ID. See the [live metadata matrix](Contexts-and-message-flow.md).
+The sample input is a JSON object, not Python source. Omitted maps default to empty synthetic maps, except the Reader `sourceMap`, which starts with `pollId: "sample"`. Use the field names below exactly. Sample metadata is synthetic; it is not proof that the same key exists in every live context. In particular, a Reader has no live message ID, and its initial `sourceMap` contains `pollId: "sample"` instead of a live invocation UUID. See the [live metadata matrix](Contexts-and-message-flow.md).
 
 ### JSON filter or transformer
 
@@ -108,11 +108,14 @@ The sample wire field `statusMessage` becomes Python `response.status_message`. 
 ```json
 {
   "destinationIds": [1, 2],
+  "sourceMap": {"origin": "sample-reader"},
   "globalMap": {},
   "globalChannelMap": {},
   "configurationMap": {"source_name": "sample"}
 }
 ```
+
+The sample `sourceMap` supplies initial Reader source values; its `pollId` starts as `"sample"` unless supplied explicitly as a non-null value. The Reader can mutate these values, and each returned `Message.source_map` overrides them. The preview includes the merged source values for each message.
 
 `destinationIds` supplies the known destination metadata IDs for validating a Reader result in this sample. It is test metadata, not a new script global. Choose IDs that correspond to your intended live configuration. The output previews messages and map changes; bytes are rendered as base64. It does not exercise live admission, downstream filtering, batch handling, or acknowledgments.
 
@@ -143,6 +146,7 @@ Cover each behavior your channel depends on, including failures. Useful cases ar
 | Maps | Read-only mutation rejected; unsupported native value; nested change; absent versus null; concurrent updates to the same key |
 | Reader | None/empty list, empty payload, text/bytes, destination subset/none, malformed later list entry, partial live admission, duplicate source records |
 | Writer | Success, permanent error, retriable outcome, response validation, queue enabled/disabled, queue-first, timeout after external side effect, manual reprocessing |
+| Return control flow | Early exit, helper returns, normal `finally` behavior, fallthrough, explicit `None`, and filter acceptance on empty/fallthrough paths and rejection of explicit null returns |
 | Functions | Each selected calling context, missing/invalid arguments, class-to-dict conversion, invalid return type, unprepared environment, save before/after redeploy |
 | Deployment | Updated requirements, node-local readiness, concurrent saves, restart, stop/start, archive references, saved versus deployed source |
 
@@ -170,9 +174,9 @@ Test results show diagnostics, captured logs, and a preview of valid changes. So
 | Formatting makes no change | Source may already match formatting, be incomplete, or require a change rejected by the AST/comment guard. Resolve syntax first. |
 | `NameError: msg` in a Writer/Function | Writer uses `payload`; Function uses `arguments`. Use the context matrix rather than copying a transformer body unchanged. |
 | `NameError: tmp` | Check `has_tmp`; configure an outbound template if needed. |
-| Top-level `return` syntax error | Assign `result` for result-bearing contexts; transform `msg`/`tmp` directly. `return` is valid inside your own function. |
+| Top-level `return` syntax error | Confirm the installed runtime supports authored `return` and the editor is a filter, Reader, Writer, or Function. Transformers must edit `msg`/`tmp` directly. |
 | Import works locally but fails on engine | Correct profile selected on this script; package included and prepared on that node; Python/ABI/system-library compatibility; redeployment completed. |
-| Filter result rejected | Assign exactly `True`/`False`. `1`, `None`, and truthy objects are not booleans. |
+| Filter result rejected | Return exactly `True`/`False`. `1`, `None`, and truthy objects are not booleans. |
 | Writer reports SENT after returning `"ERROR"` | A string is response data. Use `Status.ERROR` or `Response(status=Status.ERROR, ...)`. |
 | Reader result rejected | Wrap payloads in `Message`; validate source-map keys, routing IDs, list size, and binary/batch combination. |
 | `UnsupportedValueError` on responseMap or another map | A native Java value is not a Python proxy. Extract supported data in an earlier JavaScript step or store plain values. |

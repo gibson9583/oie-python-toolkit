@@ -13,7 +13,7 @@ from run_code_template_isolated import make_template, make_channel, ROOT, run as
 
 def run(api, child, profile, ingress, evidence, receipt):
     template_id, library_id, channel_id = [str(uuid.uuid4()) for _ in range(3)]
-    template = make_template(template_id, "result = arguments[0] + '|OK'\n")
+    template = make_template(template_id, "return arguments[0] + '|OK'\n")
     write(evidence / 'raw-template-submitted.json', template)
     saved = api.call('/codeTemplates/' + template_id, 'PUT', template)
     assert saved is True or saved.get('boolean') is True, saved
