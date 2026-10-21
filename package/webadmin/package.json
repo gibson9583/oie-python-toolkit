@@ -1,0 +1,18 @@
+{
+  "name": "python-runtime-webadmin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MPL-2.0",
+  "scripts": {
+    "build": "node web/build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "node test/browser-smoke.mjs",
+    "test:browser:editors": "node test/browser-python-editors.mjs",
+    "test:browser:ui": "node test/browser-ui-cleanup.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.0",
+    "monaco-editor": "0.56.0"
+  }
+}

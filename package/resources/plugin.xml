@@ -1,0 +1,13 @@
+<pluginMetaData path="python-runtime">
+    <name>Python Runtime</name>
+    <author>OIE Contributors</author>
+    <pluginVersion>${project.version}</pluginVersion>
+    <mirthVersion>${mirth.compatible.versions}</mirthVersion>
+    <url>https://openintegrationengine.org</url>
+    <description>Managed Python environments, filter rules, transformer steps, polling Reader and Writer using the standard OIE plugin APIs.</description>
+    <serverClasses><string>com.mirth.connect.plugins.python.server.PythonServicePlugin</string></serverClasses>
+    <apiProvider type="SERVLET_INTERFACE" name="com.mirth.connect.plugins.python.PythonRuntimeServletInterface"/>
+    <apiProvider type="SERVER_CLASS" name="com.mirth.connect.plugins.python.server.PythonRuntimeServlet"/>
+    <library type="SHARED" path="libs/oie-python-toolkit-shared-${project.version}.jar"/>
+    <library type="SERVER" path="libs/oie-python-toolkit-server-${project.version}.jar"/>
+</pluginMetaData>

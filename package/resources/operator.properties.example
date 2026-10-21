@@ -1,0 +1,11 @@
+# Optional local operator policy. Copy to appdata/python-runtime/operator.properties.
+# This configures only the plugin; the engine configuration does not need editing.
+# Use a local, operator-installed interpreter. Restart after changing this policy.
+runtimes=cpython314=/opt/homebrew/bin/python3.14
+runtime.cpython314.label=CPython 3.14
+sources=pypi
+source.pypi.label=PyPI
+# For an offline source, configure source.<id>.wheelhouse instead of indexUrl.
+# Increase these together after measuring your channels' memory and concurrency.
+# maxWorkers=8
+# maxWorkersPerChannel=4

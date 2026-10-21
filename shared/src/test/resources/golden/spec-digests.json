@@ -1,0 +1,38 @@
+[
+  {
+    "name": "default step",
+    "pythonScript": "pass\n",
+    "environmentProfileId": "",
+    "timeoutMillis": 30000,
+    "contractVersion": 1,
+    "canonical": "{\"canonicalization\":1,\"contractVersion\":1,\"profileId\":\"\",\"source\":\"pass\\n\",\"timeoutMillis\":30000}",
+    "digest": "1c6bbd5632c67f08c1ed628e1783de904ac83fc66510ae8821465b143566341e"
+  },
+  {
+    "name": "crlf and cr",
+    "pythonScript": "x = 1\r\nmsg = msg\rpass\r\n",
+    "environmentProfileId": "6f1c1a5e-3c51-4f3e-9d1f-0d3a1b2c4d5e",
+    "timeoutMillis": 5000,
+    "contractVersion": 1,
+    "canonical": "{\"canonicalization\":1,\"contractVersion\":1,\"profileId\":\"6f1c1a5e-3c51-4f3e-9d1f-0d3a1b2c4d5e\",\"source\":\"x = 1\\nmsg = msg\\npass\\n\",\"timeoutMillis\":5000}",
+    "digest": "d0754b42ebeced98f435726856147d34ef0166d94802644435a9f8a6fd8fbccd"
+  },
+  {
+    "name": "unicode and controls",
+    "pythonScript": "msg['n'] = 'café   😀 \t\b\f\u0001\"\\\\'\n",
+    "environmentProfileId": "p",
+    "timeoutMillis": 0,
+    "contractVersion": 0,
+    "canonical": "{\"canonicalization\":1,\"contractVersion\":1,\"profileId\":\"p\",\"source\":\"msg['n'] = 'café   😀 \\t\\b\\f\\u0001\\\"\\\\\\\\'\\n\",\"timeoutMillis\":30000}",
+    "digest": "6de5177bac0666df2e6010d6bff6e951c9305c007274a6fc46e822794018871a"
+  },
+  {
+    "name": "built-in standard library",
+    "pythonScript": "pass\n",
+    "environmentProfileId": "232030e4-aa0d-39fc-a889-fed1318ef412",
+    "timeoutMillis": 30000,
+    "contractVersion": 1,
+    "canonical": "{\"canonicalization\":1,\"contractVersion\":1,\"profileId\":\"232030e4-aa0d-39fc-a889-fed1318ef412\",\"source\":\"pass\\n\",\"timeoutMillis\":30000}",
+    "digest": "a0f7fe8dbc2218fe73d387449a2c2b92e1c6bf296e4927315ce1833767e2a463"
+  }
+]

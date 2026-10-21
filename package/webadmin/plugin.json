@@ -1,0 +1,11 @@
+{
+  "id": "python-runtime",
+  "name": "Python Runtime",
+  "version": "0.1.0",
+  "oie": {
+    "apiMin": "4.10"
+  },
+  "client": {
+    "entry": "web/plugin.js"
+  }
+}

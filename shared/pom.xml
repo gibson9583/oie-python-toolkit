@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.github.gibson9583</groupId>
+        <artifactId>oie-python-toolkit</artifactId>
+        <version>0.1.0</version>
+    </parent>
+    <artifactId>oie-python-toolkit-shared</artifactId>
+    <name>OIE Python Toolkit - Shared</name>
+    <dependencies>
+        <dependency><groupId>com.mirth.connect</groupId><artifactId>mirth-client-core</artifactId></dependency>
+        <dependency><groupId>com.mirth.connect</groupId><artifactId>donkey-model</artifactId></dependency>
+        <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+        <dependency><groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId></dependency>
+        <dependency><groupId>com.thoughtworks.xstream</groupId><artifactId>xstream</artifactId></dependency>
+        <dependency><groupId>javax.ws.rs</groupId><artifactId>javax.ws.rs-api</artifactId></dependency>
+        <dependency><groupId>io.swagger.core.v3</groupId><artifactId>swagger-annotations</artifactId></dependency>
+        <dependency><groupId>xpp3</groupId><artifactId>xpp3</artifactId><version>1.1.4c</version><scope>test</scope></dependency>
+    </dependencies>
+
+</project>
