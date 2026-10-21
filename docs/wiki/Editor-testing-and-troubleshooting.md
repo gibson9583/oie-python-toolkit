@@ -27,9 +27,9 @@ Formatting is conservative. Selection formatting covers the full touched lines. 
 
 If Monaco or its grammar cannot load, the editable text fallback preserves the script but cannot provide the full Monaco experience. A functioning text area is not evidence that completion or formatting is available. Check extension assets, runtime readiness, permissions, and diagnostics before assuming an editor defect.
 
-![Python Reader IntelliSense at sourceMap.p showing put and putAll suggestions](assets/python-intellisense.png)
+![Python Reader IntelliSense suggesting Message without an import](assets/python-intellisense.png)
 
-In this **Python Reader**, typing `sourceMap.p` offers methods including `put` and `putAll`: the Reader's `sourceMap` is writable and supplies defaults for returned messages. Downstream `sourceMap` is read-only. Completion suggestions help discover Python and SDK APIs in the selected environment; use the context reference to check which values and operations apply.
+In this **Python Reader**, typing `return Mess` offers the automatically supplied `Message` class without an import. Writers similarly receive `Response` and `Status`; response transformers receive `Status`. Completion suggestions help discover Python and SDK APIs in the selected environment; use the context reference to check which values and operations apply.
 
 ## Save, Validate, Test, and deploy
 
@@ -154,7 +154,7 @@ Cover each behavior your channel depends on, including failures. Useful cases ar
 | Filters | True, false, missing fields, exceptions, non-boolean result, AND/OR short circuit, mutations on false |
 | Documents | Actual JSON/RAW/XML datatype; with/without `tmp`; missing/repeated/namespaced XML fields; a later JavaScript step reading the updated root |
 | Maps | Read-only mutation rejected; unsupported native value; nested change; absent versus null; concurrent updates to the same key |
-| Reader | None/empty list, empty payload, text/bytes, destination subset/none, malformed later list entry, partial live admission, duplicate source records |
+| Reader | None/empty list, bare strings and mixed lists, skipped empty strings versus empty Message payload, text/bytes, destination subset/none, malformed later list entry, partial live admission, duplicate source records |
 | Writer | Success, permanent error, retriable outcome, response validation, queue enabled/disabled, queue-first, timeout after external side effect, manual reprocessing |
 | Return control flow | Early exit, helper returns, normal `finally` behavior, fallthrough, explicit `None`, and filter acceptance on empty/fallthrough paths and rejection of explicit null returns |
 | Functions | Each selected calling context, missing/invalid arguments, class-to-dict conversion, invalid return type, unprepared environment, save before/after redeploy |

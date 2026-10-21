@@ -28,7 +28,7 @@ Each invocation gets fresh script globals. A worker can survive many invocations
 | --- | --- |
 | Source or destination Python filter | Return exactly `True` or `False`; an empty body or fallthrough accepts as `True` |
 | Source, destination, or response Python transformer | Edit or replace `msg` and, when present, `tmp`; response transformers can also edit `response` fields |
-| Python Reader | Return `None`, a `Message`, or a list of `Message` objects |
+| Python Reader | Return `None`, a string, `Message`, or a list mixing strings and `Message` objects |
 | Python Writer | Return `None`, a string, a `Response`, or a `Status` |
 | Python Function code template | Read positional `arguments`; return a JSON-compatible value for the calling JavaScript |
 

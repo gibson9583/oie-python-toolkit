@@ -166,7 +166,6 @@ def reader(api, child, profile, evidence):
     model = ET.fromstring(channel_xml(channel_id, port(), profile['id'], marker='map-reader', reader=True))
     for path in PHASES.values(): model.find(path + '/elements').clear()
     model.find('sourceConnector/properties/pythonScript').text = """
-from oie_python import Message
 assert configurationMap['map-site'] == 'local'
 assert 'channelMap' not in globals() and 'poll' not in globals()
 assert isinstance(sourceMap['pollId'], str)

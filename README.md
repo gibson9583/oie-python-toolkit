@@ -46,7 +46,7 @@ channelMap.put("patient_id", msg["patient_id"])
 globalChannelMap.put("last_patient_id", msg["patient_id"])
 ```
 
-Use `has_tmp` before accessing `tmp`. All script types can use `logger.debug/info/warning/error` and `print()` for captured output; live `print()` output is forwarded to the engine log at INFO. Readers return a `Message`, a list of messages, or `None`. Writers use `payload` and return a string, `Response`, `Status`, or `None`. Returning `None` emits no Reader messages and gives an empty SENT Writer response.
+Use `has_tmp` before accessing `tmp`. All script types can use `logger.debug/info/warning/error` and `print()` for captured output; live `print()` output is forwarded to the engine log at INFO. Readers return a string, `Message`, a list mixing strings and `Message` objects, or `None`. Empty bare strings emit nothing; `Message("")` emits an empty message. Writers use `payload` and return a string, `Response`, `Status`, or `None`. Returning `None` emits no Reader messages and gives an empty SENT Writer response.
 
 ## Python filters
 

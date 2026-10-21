@@ -207,7 +207,7 @@ class TransformContextTest(unittest.TestCase):
                 for name in names}
         context = TransformContext(transform_wire(maps=maps), ScriptLogger(100))
         values = context.script_globals()
-        self.assertEqual(set(values), set(names) | {"logger", "phase", "message", "msg", "has_tmp"})
+        self.assertEqual(set(values), set(names) | {"logger", "phase", "message", "msg", "has_tmp", "UnsupportedValue"})
         for name in names:
             self.assertEqual(values[name]["existing"], "engine")
             if maps[name]["writable"]:
@@ -371,11 +371,31 @@ class WriterReaderTest(unittest.TestCase):
         self.assertEqual(one["messages"][0]["destinationIds"], [])
         self.assertIsNone(ctx.result_for(Message("x"))["messages"][0]["destinationIds"])
         bad = [Message("x"), Message("y"), Message("z")]
-        cases = [bad, "text", Message(5), Message("x", destination_ids=[3]), Message("x", destination_ids=[True]),
-                 Message("x", source_map={"batchId": 1}), (m for m in [Message("x")]), [Message("x"), "y"]]
+        cases = [bad, b"text", Message(5), Message("x", destination_ids=[3]), Message("x", destination_ids=[True]),
+                 Message("x", source_map={"batchId": 1}), (m for m in [Message("x")]), ["good", None], ["good", 3]]
         for case in cases:
             with self.assertRaises(ContractError):
                 ctx.result_for(case)
+
+    def test_reader_string_and_mixed_results(self):
+        ctx = ReaderContext({"role": "read", "maxMessages": 3, "destinationIds": [1, 2],
+                             "sourceMap": {"pollId": "sample", "origin": "reader"}}, ScriptLogger(10))
+        self.assertEqual(ctx.result_for("")["messages"], [])
+        text = ctx.result_for("hello")["messages"]
+        self.assertEqual(text, ctx.result_for(Message("hello"))["messages"])
+        self.assertIsNone(text[0]["destinationIds"])
+        self.assertEqual(_codec.decode(text[0]["sourceMap"]), {"pollId": "sample", "origin": "reader"})
+        mixed = ctx.result_for(["first", "", Message("", source_map={"origin": "override"},
+                                                   destination_ids=[2])])["messages"]
+        self.assertEqual([item["payload"] for item in mixed], ["first", ""])
+        self.assertEqual(mixed[1]["destinationIds"], [2])
+        self.assertEqual(_codec.decode(mixed[1]["sourceMap"])["origin"], "override")
+        # Count the supplied list before skipping blanks, keeping the poll bound.
+        with self.assertRaises(ContractError):
+            ctx.result_for(["", "", "", ""])
+        for bad in (["first", None], ["first", b"bytes"], ["first", Message(None)]):
+            with self.subTest(value=bad), self.assertRaises(ContractError):
+                ctx.result_for(bad)
 
     def test_reader_source_map_defaults_overrides_and_independent_outputs(self):
         wire = {"role": "read", "sourceMap": {"pollId": "first", "nested": {"items": []}}}
@@ -404,7 +424,7 @@ class WriterReaderTest(unittest.TestCase):
         cycle = {}; cycle["cycle"] = cycle
         invalid.append(cycle)
         for values in invalid:
-            for result in (None, [], Message("x")):
+            for result in (None, [], "", "x", Message("x")):
                 with self.subTest(values=repr(values), result=result):
                     ctx = ReaderContext({"role": "read"}, ScriptLogger(10))
                     # Bypass the convenience setter to exercise result-time validation.
@@ -626,7 +646,7 @@ class WorkerProcessTest(unittest.TestCase):
         self.assertEqual(function["result"], {"value": {"name": "ALICE", "rest": [3, None]}}, function)
 
     def test_return_defaults_reset_and_invalid_returns_keep_contract_checks(self):
-        cases = [({"role": "read"}, "return 'not a Message'"),
+        cases = [({"role": "read"}, "return 7"),
                  ({"role": "write"}, "return {}"),
                  ({"role": "call", "arguments": []}, "return 2**60")]
         for wire, source in cases:

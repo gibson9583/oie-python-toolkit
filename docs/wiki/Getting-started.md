@@ -18,8 +18,6 @@ Select **Python Reader** as the source connector. This fixture emits one message
 
 ```python
 import json
-from oie_python import Message
-
 return Message(
     payload=json.dumps({"patient_id": "P123", "name": " Ada ", "active": True}),
     source_map={"origin": "getting-started"},
@@ -60,8 +58,6 @@ This Writer is a demonstration that acknowledges the serialized payload; it does
 
 ```python
 import json
-from oie_python import Response, Status
-
 document = json.loads(payload)
 return Response(
     status=Status.SENT,

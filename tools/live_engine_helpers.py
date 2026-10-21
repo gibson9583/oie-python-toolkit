@@ -73,7 +73,7 @@ def channel_xml(cid, ingress, profile, marker='A', reader=False, marshmallow=Fal
     dst = root.find('destinationConnectors/connector'); old = dst.find('properties'); old_defaults = copy.deepcopy(old.find('destinationConnectorProperties'))
     dst.remove(old); properties = ET.Element('properties', {'class': 'com.mirth.connect.connectors.python.PythonDispatcherProperties', 'version': '4.6.0'})
     properties.append(old_defaults)
-    writer_source = writer_source or f"from oie_python import Response\nconnectorMap['writer'] = '{marker}'\nreturn Response(data='{marker}|' + payload)\n"
+    writer_source = writer_source or f"connectorMap['writer'] = '{marker}'\nreturn Response(data='{marker}|' + payload)\n"
     script_fields(properties, profile, writer_source, timeout); dst.insert(2, properties); dst.find('transportName').text = 'Python Writer'
     source_code = "msg = msg + '|source'\nchannelMap['source'] = 'python'\n"
     if marshmallow:
@@ -90,7 +90,7 @@ def channel_xml(cid, ingress, profile, marker='A', reader=False, marshmallow=Fal
         element(poll, 'cronJobs'); advanced = element(poll, 'pollConnectorPropertiesAdvanced'); element(advanced, 'weekly', 'true'); inactive = element(advanced, 'inactiveDays')
         for _ in range(8): element(inactive, 'boolean', 'false')
         for key, value in {'dayOfMonth':'1','allDay':'true','startingHour':'8','startingMinute':'0','endingHour':'17','endingMinute':'0'}.items(): element(advanced, key, value)
-        code = "from oie_python import Message\nreturn [Message('', source_map={'origin':'reader'}, destination_ids=[]), Message(b'\\x00\\xff', destination_ids=[1])]\n"
+        code = "return [Message('', source_map={'origin':'reader'}, destination_ids=[]), Message(b'\\x00\\xff', destination_ids=[1])]\n"
         script_fields(properties, profile, code); src.insert(2, properties); src.find('transportName').text = 'Python Reader'
         source_elements.clear() # The Reader binary payload crosses the engine's base64 boundary.
     return ET.tostring(root, encoding='unicode')

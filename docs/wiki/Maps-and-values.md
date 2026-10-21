@@ -231,8 +231,6 @@ An engine value with no supported representation becomes `oie_python.Unsupported
 Distinguish retrieving the sentinel from inspecting its underlying value:
 
 ```python
-from oie_python import UnsupportedValue
-
 candidate = channelMap.get("legacyObject")  # Retrieving a sentinel is allowed.
 if isinstance(candidate, UnsupportedValue):
     logger.warning("legacyObject is an unreadable engine type: %s", candidate.java_type)

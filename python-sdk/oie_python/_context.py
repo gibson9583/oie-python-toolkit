@@ -255,6 +255,7 @@ class _BaseContext:
     def script_globals(self):
         values = {name: getattr(self, name) for name in ("logger", "phase", "message")}
         values.update({name: self._maps.view(name) for name in self._maps.values})
+        values["UnsupportedValue"] = UnsupportedValue
         return values
 
     def _with_map_changes(self, result):
@@ -328,7 +329,7 @@ class TransformContext(_BaseContext):
         if self.has_tmp:
             values["tmp"] = self.tmp
         if self._response is not None:
-            values["response"] = self.response
+            values.update(response=self.response, Status=Status)
         return values
 
     def result_from_globals(self, values, returned=None):
@@ -370,7 +371,7 @@ class WriterContext(_BaseContext):
 
     def script_globals(self):
         values = super().script_globals()
-        values.update(payload=self.payload)
+        values.update(payload=self.payload, Response=Response, Status=Status)
         return values
 
     def result_for(self, value):
@@ -416,20 +417,20 @@ class ReaderContext(_BaseContext):
 
     def script_globals(self):
         values = super().script_globals()
-        values.update(sourceMap=self.sourceMap)
+        values.update(sourceMap=self.sourceMap, Message=Message)
         return values
 
     def result_for(self, value):
         self._encode_source_map(self.sourceMap, "sourceMap")
         if value is None:
             items = []
-        elif isinstance(value, Message):
+        elif isinstance(value, (str, Message)):
             items = [value]
         elif isinstance(value, list):
             items = value
         else:
             raise ContractError(
-                "Reader must return None, a Message, or a list of Message objects; got %s"
+                "Reader must return None, str, a Message, or a list of str/Message objects; got %s"
                 % type(value).__name__,
                 "result",
             )
@@ -441,8 +442,14 @@ class ReaderContext(_BaseContext):
         out = []
         for index, item in enumerate(items):
             where = "message[%d]" % index
+            if isinstance(item, str):
+                # Stock JavaScript Readers skip empty bare strings, including
+                # entries in a Java List; explicit RawMessage/Message preserves them.
+                if not item:
+                    continue
+                item = Message(item)
             if not isinstance(item, Message):
-                raise ContractError("%s is %s, not a Message" % (where, type(item).__name__), where)
+                raise ContractError("%s is %s, not str or a Message" % (where, type(item).__name__), where)
             out.append(self._message(item, where))
         return self._with_map_changes({"messages": out})
 

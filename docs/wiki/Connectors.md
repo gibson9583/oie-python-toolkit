@@ -48,8 +48,6 @@ Paste into a Python Reader:
 
 ```python
 import json
-from oie_python import Message
-
 sourceMap.put("origin", "python-reader")
 body = json.dumps({"record_id": "example-001", "active": True})
 return Message(
@@ -67,26 +65,32 @@ To emit no work:
 return None
 ```
 
-`return []` has the same effect. Falling through also emits nothing. A bare string, dictionary, generator, tuple of messages or bytes object is not a valid Reader result. Wrap each payload in `Message(...)` and use a list for multiple messages.
+`return []` and `return ""` have the same effect. Falling through also emits nothing. Return a string for one plain text message, or a Python list mixing strings and `Message` objects for several messages:
+
+```python
+sourceMap["origin"] = "reader"
+return ["one", "two", Message("routed", destination_ids=[2])]
+```
+
+Bare strings inherit the final `sourceMap` and select all enabled destinations. Empty bare strings are skipped, including within a list; `Message("")` emits a real empty message. A dictionary, generator, tuple of messages or bare bytes object is invalid. Use `Message(...)` for binary data or per-message metadata/routing.
 
 ### Message is Python's counterpart to RawMessage
 
-Import the actual SDK class:
-
-```python
-from oie_python import Message
-```
+`Message` is supplied automatically in Reader scripts. Explicit `from oie_python import Message` remains supported.
 
 Its constructor is `Message(payload, source_map=None, destination_ids=None)`. The fields remain mutable until result extraction. There is no Python `RawMessage` alias or Java wrapper to import.
 
 | JavaScript Reader / engine concept | Python Reader |
 | --- | --- |
+| Return a nonempty string | Return a nonempty string |
 | `new RawMessage(text)` | `Message(text)` |
 | Raw data | `Message.payload` |
 | Source map passed to `RawMessage` | `Message.source_map` |
 | Destination metadata ID collection | `Message.destination_ids` |
-| Return a collection from the Reader script | Return a Python list |
+| Return a Java `List` of strings and/or `RawMessage` | Return a Python list of strings and/or `Message` |
 | Return nothing / no messages | Return `None` or `[]`, or fall through |
+
+Stock OIE 4.6/4.7 converts a Java `List` entry by entry; a native JavaScript array instead falls through to a single string conversion. Python uses its ordinary list for multiple messages. Python rejects other element types instead of implicitly calling `toString()`.
 
 A JavaScript Reader example using the stock engine's wrapper:
 
@@ -99,8 +103,6 @@ return new RawMessage('{"record_id":"example-001"}', null, initialValues);
 The Python equivalent:
 
 ```python
-from oie_python import Message
-
 return Message(
     '{"record_id":"example-001"}',
     source_map={"origin": "reader"},
@@ -115,15 +117,13 @@ The argument order differs: JavaScript's three-argument `RawMessage` takes **pay
 `payload` must be a Python `str` or `bytes`; the SDK also normalizes `bytearray` and `memoryview` to bytes during extraction. Serialize JSON explicitly with `json.dumps`. A Python dictionary is not automatically converted into raw JSON.
 
 ```python
-from oie_python import Message
-
 return [
     Message(""),
     Message(b"\x00\xff"),
 ]
 ```
 
-Both entries are real messages. `Message('')` and `Message(b'')` also emit real messages; only `None` and an empty result list mean no work. Binary messages use the engine's raw-byte path and appear in its base64 representation, so `b'\x00\xff'` is observed as `AP8=` in raw text. Do not base64-encode bytes yourself merely to cross the Python boundary. Whether downstream processing should decode that text depends on the channel's data type and integration protocol.
+Both entries are real messages. `Message('')` and `Message(b'')` also emit real messages; `None`, an empty result list and empty bare strings mean no work. Binary messages use the engine's raw-byte path and appear in its base64 representation, so `b'\x00\xff'` is observed as `AP8=` in raw text. Do not base64-encode bytes yourself merely to cross the Python boundary. Whether downstream processing should decode that text depends on the channel's data type and integration protocol.
 
 **Disable Process Batch for binary payloads**, including empty bytes. A list containing a valid text message followed by a binary message is rejected in full when Process Batch is enabled.
 
@@ -155,8 +155,6 @@ IDs are integer metadata IDs, not destination names, list positions or UUIDs. Di
 This subset example requires destination metadata ID `2` to exist and be enabled; replace it with the ID from your channel before using it:
 
 ```python
-from oie_python import Message
-
 return Message("route this record", destination_ids=[2])
 ```
 
@@ -168,8 +166,6 @@ A bounded list is emitted in list order:
 
 ```python
 import json
-from oie_python import Message
-
 records = [{"id": "A"}, {"id": "B"}]
 return [
     Message(json.dumps(record), source_map={"external_record_id": record["id"]})
@@ -177,7 +173,7 @@ return [
 ]
 ```
 
-The complete result, every `Message`, every source value, all destination selections and all returned shared-map changes are validated before the first dispatch. If the second entry contains an invalid payload or reserved source key, the first entry is not dispatched either. Default operator policy permits **1,000 returned messages per poll** (`maxReaderMessages`). Frame size, nesting and supported-value limits also apply; a count below 1,000 does not guarantee a result fits the wire limit. See [operator limits](../operations.md#initial-limits).
+The complete result, every `Message`, every source value, all destination selections and all returned shared-map changes are validated before the first dispatch. If the second entry contains an invalid payload or reserved source key, the first entry is not dispatched either. Default operator policy permits **1,000 supplied list entries per poll** (`maxReaderMessages`), counting skipped empty strings. Frame size, nesting and supported-value limits also apply; a count below 1,000 does not guarantee a result fits the wire limit. See [operator limits](../operations.md#initial-limits).
 
 With **Process Batch** enabled, each text `Message` is an envelope for the engine's configured batch splitter. One envelope can produce several engine messages. The returned-list limit counts envelopes; it is not a separate bound on how many messages the splitter can produce. The envelope's source map and destination selection accompany the batch. The engine supplies the reserved batch metadata. A valid batch producing zero messages is not itself an error. Configure and test the channel's actual data-type batch settings; returning a list and enabling Process Batch solve different problems.
 
@@ -237,11 +233,9 @@ These are snapshots, not setters for engine state. `send_attempts` is supplied f
 
 ### Return forms and the four response fields
 
-Import `Response` and `Status` from the SDK:
+`Response` and `Status` are supplied automatically in Writer scripts:
 
 ```python
-from oie_python import Response, Status
-
 return Response(
     status=Status.SENT,
     data="accepted",
@@ -266,8 +260,6 @@ A status member is handled before ordinary strings. Consequently `Status.ERROR` 
 
 ```python
 import json
-from oie_python import Response, Status
-
 return Response(
     status=Status.SENT,
     data=json.dumps({"accepted": True, "has_payload": payload is not None}),
@@ -297,8 +289,6 @@ return new Response(Status.ERROR, 'negative-ack', 'Rejected', 'Application rejec
 Python Writer:
 
 ```python
-from oie_python import Response, Status
-
 return Response(
     status=Status.ERROR,
     data="negative-ack",

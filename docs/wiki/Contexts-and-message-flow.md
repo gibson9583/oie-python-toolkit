@@ -10,6 +10,8 @@ The eight source surfaces are two filters, three transformers, Reader, Writer, a
 
 Every surface receives `logger`, `phase`, read-only `message` metadata, `globalMap`, `globalChannelMap`, and read-only `configurationMap`. The per-message maps below mean `channelMap`, `connectorMap`, read-only `sourceMap`, and `responseMap`. See [Maps and values](Maps-and-values.md) for map semantics and supported values.
 
+`phase` is optional metadata identifying the Python execution surface; most scripts can ignore it. It is a string, not the JavaScript engine's `phase` array. Stock OIE 4.6/4.7 source/destination filters and transformers expose `phase[0]`, which is `"filter"` or `"transformer"`; their response-transformer, Reader, and Writer scopes do not expose `phase`. Python supplies the surface strings below in all eight editors. Rebinding the Python name only changes the script binding and cannot change engine routing or error classification.
+
 | Editor | When it executes | `phase` | Additional variables | Output contract |
 | --- | --- | --- | --- | --- |
 | Source filter: Python rule | During source filtering, before source transformer steps | `source-filter` | `msg`, `has_tmp`, optional `tmp`, per-message maps | Return exactly `True` or `False`; empty/fallthrough accepts; valid document/map edits also apply |
@@ -17,9 +19,11 @@ Every surface receives `logger`, `phase`, read-only `message` metadata, `globalM
 | Source transformer: Python step | At its position among source transformer steps, after a successful source filter | `source-transformer` | `msg`, `has_tmp`, optional `tmp`, per-message maps | Mutate or replace `msg`/`tmp`; no top-level `return` |
 | Destination transformer: Python step | At its position among that destination's steps, after a successful destination filter | `destination-transformer` | Same transformer variables | Mutate or replace `msg`/`tmp`; no top-level `return` |
 | Destination response transformer: Python step | When the engine runs that destination's response transformation | `response-transformer` | Transformer variables plus `response` | Edit response documents and supported `response` fields |
-| Python Reader | Once per engine poll | `reader` | Writable invocation-local `sourceMap`; no other per-message maps or documents | `None`, one `Message`, or bounded list of `Message` |
+| Python Reader | Once per engine poll | `reader` | Writable invocation-local `sourceMap`; no other per-message maps or documents | `None`, a string, `Message`, or bounded list mixing strings and `Message` |
 | Python Writer | When the engine invokes that destination send attempt | `writer` | `payload`, per-message maps; no `msg` or `tmp` | `None`, string, `Status`, or `Response` |
 | Python Function template | Only when a JavaScript filter/transformer explicitly calls its deployed function | Calling transformer phase, as detailed below | `arguments`, per-message maps; no `msg`, `tmp`, or `response` | Return a JSON-compatible value |
+
+`Message` is supplied automatically in Readers, `Response` and `Status` in Writers, and `Status` in response transformers. `UnsupportedValue` is available in every script for inspecting opaque engine map values. Explicit `from oie_python import ...` imports remain supported; separately imported modules must import the types they use. Other SDK types, including exception classes, still require imports.
 
 `tmp` is absent from the Python globals when the engine supplies no outbound template. Test `has_tmp` before using it. The stock filter/transformer builder can initialize the template before filtering, so filters can see it; they still execute before transformer steps populate its fields.
 
@@ -96,8 +100,6 @@ Reader `sourceMap` is a fresh writable map containing `pollId`, a generated UUID
 For example, this complete Writer script assumes a text payload and simply reports an accepted response; it performs no external delivery:
 
 ```python
-from oie_python import Response, Status
-
 logger.info("message=%s destination=%s attempt=%s",
             message["message_id"], message["metadata_id"], message["send_attempts"])
 return Response(status=Status.SENT, data="accepted", status_message="Recorded")
@@ -115,7 +117,7 @@ These surfaces have different responsibilities:
 | Set error detail | `response.error = "..."` | `Response(error="...")` |
 | Replace helper binding | Rebinding `response` has no effect on captured response fields | Return the desired object |
 
-The response-transformer helper exposes only `status`, `status_message`, and `error`; it has no `.data` or Java `.getMessage()` API. The body travels through `msg`/`tmp`. Supported assigned statuses are `SENT`, `ERROR`, and `QUEUED`. Text fields accept strings or `None`. The imported `Response` class is a Writer result type, not a replacement response-transformer helper.
+The response-transformer helper exposes only `status`, `status_message`, and `error`; it has no `.data` or Java `.getMessage()` API. The body travels through `msg`/`tmp`. Supported assigned statuses are `SENT`, `ERROR`, and `QUEUED`. Text fields accept strings or `None`. The `Response` class is a Writer result type, not a replacement response-transformer helper.
 
 A bare Writer string, even `"ERROR"`, is **successful response data**, not a status request. `Status.ERROR` is the explicit status-only result. `None` means SENT with empty data. A Writer dict/bytes result is invalid: serialize JSON yourself. Queue-disabled `QUEUED` becomes an engine ERROR; queue and retry behavior still follows stock destination settings. See [Connectors](Connectors.md) for full Reader/Writer contracts.
 

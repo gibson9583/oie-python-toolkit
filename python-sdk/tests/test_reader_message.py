@@ -51,14 +51,14 @@ class ReaderMessageTest(unittest.TestCase):
         invalid = [Message(None), Message(3), Message("bad", source_map=[]),
                    Message("bad", source_map={"java": object()}), Message("bad", source_map={1: "value"}),
                    Message("bad", destination_ids=[3]), Message("bad", destination_ids=[True]),
-                   Message("bad", destination_ids=[1.0]), "unwrapped"]
+                   Message("bad", destination_ids=[1.0]), {"invalid": "object"}]
         invalid += [Message("bad", source_map={key: "owned"}) for key in RESERVED_SOURCE_MAP_KEYS]
         for value in invalid:
             with self.subTest(value=value), self.assertRaises(ContractError):
                 context.result_for([Message("first"), value])
         with self.assertRaises(ContractError):
             self.context(limit=1).result_for([Message("first"), Message("second")])
-        for value in ("", b"", (Message("tuple"),), iter([Message("iterator")])):
+        for value in (7, b"", (Message("tuple"),), iter([Message("iterator")])):
             with self.subTest(type=type(value)), self.assertRaises(ContractError):
                 context.result_for(value)
 

@@ -108,7 +108,8 @@ class Message:
 
     This is the Python counterpart of the engine's script RawMessage. The
     connector creates the Java RawMessage after validating the entire result.
-    Set result to one Message, a list of Message objects, or None for no work.
+    Return str, one Message, a list mixing str/Message, or None for no work.
+    Bare empty strings emit nothing; Message("") emits an empty message.
 
     payload: str or bytes. An empty string or empty bytes is still a message.
     source_map: dict of supported values; defaults to an empty dict.

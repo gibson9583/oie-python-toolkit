@@ -142,9 +142,9 @@ try {
             if (role === 'response-transformer') output.response = await complete('response.');
             if (role === 'reader' || role === 'writer') {
                 const name = role === 'reader' ? 'Message' : 'Response';
-                const at = set(`from oie_python import ${name}\nreturn ${name}(`);
+                const at = set(`return ${name}(`);
                 output.resultSignature = (await providers.signature.provideSignatureHelp(model, at, {}))?.value;
-                if (role === 'writer') output.statuses = await complete('from oie_python import Status\nreturn Status.');
+                if (role === 'writer') output.statuses = await complete('return Status.');
                 else {
                     const at = set('sourceMap.put(');
                     output.sourceMapSignature = (await providers.signature.provideSignatureHelp(model, at, {}))?.value;

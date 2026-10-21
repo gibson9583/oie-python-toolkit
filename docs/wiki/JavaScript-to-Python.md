@@ -15,11 +15,13 @@ Write the Python script body in the editor. Filters, Readers, Writers, and Pytho
 | Source transformer step | Change `msg`, `tmp` when available, or writable maps | `msg["checked"] = True` for a JSON object |
 | Destination transformer step | Same document contract; an outbound template makes `tmp` the outgoing document | `if has_tmp: tmp["checked"] = True` for a JSON template |
 | Response transformer | Change response document and/or the supplied response fields | `response.status_message = "Validated"` |
-| JavaScript Reader returning raw message data | Python Reader; return `Message`, a list of `Message`, or `None` | `from oie_python import Message` then `return Message("hello")` |
-| JavaScript Writer returning a response | Python Writer; return `None`, `str`, `Status`, or `Response` | `from oie_python import Status` then `return Status.SENT` |
+| JavaScript Reader returning raw message data | Python Reader; return a string, `Message`, a mixed list, or `None` | `return "hello"` |
+| JavaScript Writer returning a response | Python Writer; return `None`, `str`, `Status`, or `Response` | `return Status.SENT` |
 | Callable JavaScript code template | Python Function template; read JSON `arguments`, return a JSON-compatible value | `return {"name": arguments[0]["name"].strip()}` |
 
-An empty filter or fallthrough accepts as `True`. An explicit filter return must be boolean; `1`, `"true"`, `None`, and a bare `return` are invalid. A Writer rejects a dict result unless you serialize it to text. A Reader rejects a bare string unless you wrap it in `Message`. See [Filters and transformers](Filters-and-transformers.md), [Connectors](Connectors.md), and [Functions, classes, and modules](Functions-classes-and-modules.md) for complete examples and failure behavior.
+An empty filter or fallthrough accepts as `True`. An explicit filter return must be boolean; `1`, `"true"`, `None`, and a bare `return` are invalid. A Writer rejects a dict result unless you serialize it to text. A Reader accepts plain strings and lists mixing strings with `Message`; empty bare strings emit nothing. Use `Message` for binary data, per-message metadata, routing, or an empty message. See [Filters and transformers](Filters-and-transformers.md), [Connectors](Connectors.md), and [Functions, classes, and modules](Functions-classes-and-modules.md) for complete examples and failure behavior.
+
+For execution context, Python's optional `phase` is a surface-name string such as `source-filter` or `response-transformer`. Stock OIE 4.6/4.7 JavaScript uses a different shape in source/destination filters and transformers: `phase[0]` is `"filter"` or `"transformer"`. JavaScript response transformers, Readers, and Writers have no `phase` binding; Python supplies it there as well. Scripts can ignore this metadata. Rebinding it in Python does not control the engine. See [Contexts and message flow](Contexts-and-message-flow.md) for the available strings and Python Function caller behavior.
 
 ## Map shortcuts
 
@@ -184,8 +186,6 @@ return json.dumps(document, ensure_ascii=False, allow_nan=False)
 A JavaScript Reader's `new RawMessage(...)` concept becomes the SDK's `Message`; do not import a nonexistent Python `RawMessage` or `newRawMessage` helper:
 
 ```python
-from oie_python import Message
-
 return Message(
     '{"patientId":"P123"}',
     source_map={"origin": "python-reader", "sourceId": "external-123"},
@@ -195,11 +195,9 @@ return Message(
 
 `destination_ids=None` selects all enabled destinations; `[]` selects none. A list selects enabled numeric metadata IDs, not destination names. `source_map` overrides the supplied Reader `sourceMap` defaults for this new message; it cannot set the reserved engine keys `destinationSet`, `batchId`, `batchComplete`, `batchSequenceId`, `reprocessed`, or `replaced`. `Message(b"binary")` is allowed with Process Batch disabled. Attachments, original-message IDs, and import/overwrite flags are not Message fields.
 
-A Writer's JavaScript `new Response(...)` becomes an imported Python `Response` with named Python fields:
+A Writer's JavaScript `new Response(...)` becomes the supplied Python `Response` with named Python fields:
 
 ```python
-from oie_python import Response, Status
-
 return Response(
     status=Status.SENT,
     data="accepted",
@@ -213,8 +211,6 @@ return Response(
 A response transformer uses its existing `response` object instead of returning a Writer result:
 
 ```python
-from oie_python import Status
-
 response.status = Status.SENT
 response.status_message = "Response accepted"
 response.error = None

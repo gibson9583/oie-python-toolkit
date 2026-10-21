@@ -31,20 +31,26 @@ def sample_cases(api, profile, evidence):
         ('filter-fallthrough-finally', 'destination-filter', "try:\n    msg += '|fallthrough'\nfinally:\n    channelMap['final'] = True", 'success'),
         ('filter-explicit-none', 'source-filter', 'return None', 'error'),
         ('filter-bare-return', 'destination-filter', 'return', 'error'),
-        ('reader-one', 'reader', "from oie_python import Message\nreturn Message('one', source_map={'value': 42})", 'success'),
-        ('reader-many', 'reader', "from oie_python import Message\nreturn [Message('one'), Message('two')]", 'success'),
+        ('reader-one', 'reader', "return Message('one', source_map={'value': 42})", 'success'),
+        ('reader-explicit-import', 'reader', "from oie_python import Message\nreturn Message('compatible')", 'success'),
+        ('reader-many', 'reader', "return [Message('one'), Message('two')]", 'success'),
+        ('reader-string', 'reader', "return 'one'", 'success'),
+        ('reader-string-list', 'reader', "return ['one', '', 'two']", 'success'),
+        ('reader-mixed-list', 'reader', "return ['one', Message('two', source_map={'origin': 'override'})]", 'success'),
+        ('reader-empty-string', 'reader', "return ''", 'success'),
         ('reader-none', 'reader', "result = 'ignored'\nreturn None", 'success'),
-        ('reader-assignment-is-not-return', 'reader', "assert 'result' not in globals()\nfrom oie_python import Message\nresult = Message('not-emitted')", 'success'),
-        ('reader-invalid', 'reader', "from oie_python import Message\nreturn [Message('one'), 'invalid']", 'error'),
-        ('reader-source-defaults', 'reader', "from oie_python import Message\nassert 'poll' not in globals()\nassert sourceMap['pollId'] == 'sample'\nassert sourceMap['origin'] == 'seeded'\nsourceMap.put('shared', {'count': 2})\nreturn [Message('one'), Message('two', source_map={'origin': 'override'})]", 'success'),
+        ('reader-assignment-is-not-return', 'reader', "assert 'result' not in globals()\nresult = Message('not-emitted')", 'success'),
+        ('reader-invalid', 'reader', "return ['one', None]", 'error'),
+        ('reader-source-defaults', 'reader', "assert 'poll' not in globals()\nassert sourceMap['pollId'] == 'sample'\nassert sourceMap['origin'] == 'seeded'\nsourceMap.put('shared', {'count': 2})\nreturn [Message('one'), Message('two', source_map={'origin': 'override'})]", 'success'),
         ('reader-invalid-source-none', 'reader', "sourceMap['invalid'] = object()\nglobalMap['mustNotCommit'] = True\nreturn None", 'error'),
-        ('reader-source-rebinding', 'reader', "from oie_python import Message\nsourceMap = {'notExported': True}\nreturn Message('one')", 'success'),
-        ('reader-source-cleared', 'reader', "from oie_python import Message\nsourceMap.clear()\nreturn Message('one')", 'success'),
-        ('writer-response', 'writer', "from oie_python import Response, Status\nreturn Response(Status.SENT, 'ack')", 'success'),
-        ('writer-status', 'writer', "from oie_python import Status\nreturn Status.ERROR", 'success'),
+        ('reader-source-rebinding', 'reader', "sourceMap = {'notExported': True}\nreturn Message('one')", 'success'),
+        ('reader-source-cleared', 'reader', "sourceMap.clear()\nreturn Message('one')", 'success'),
+        ('writer-response', 'writer', "return Response(Status.SENT, 'ack')", 'success'),
+        ('writer-explicit-import', 'writer', "from oie_python import Response, Status\nreturn Response(Status.SENT, 'compatible')", 'success'),
+        ('writer-status', 'writer', "return Status.ERROR", 'success'),
         ('writer-string', 'writer', "return 'ERROR'", 'success'),
         ('writer-none', 'writer', "result = 'ignored'\nreturn None", 'success'),
-        ('writer-assignment-is-not-return', 'writer', "assert 'result' not in globals()\nfrom oie_python import Response, Status\nresult = Response(Status.ERROR, 'not-returned')", 'success'),
+        ('writer-assignment-is-not-return', 'writer', "assert 'result' not in globals()\nresult = Response(Status.ERROR, 'not-returned')", 'success'),
     ]
     observations = []
     for name, role, source, status in cases:
@@ -67,8 +73,14 @@ def sample_cases(api, profile, evidence):
             if name == 'filter-fallthrough-finally':
                 assert response['output']['mapChanges']['channelMap']['set']['final'] is True, response
                 assert response['output']['msg']['text'] == 'sample|fallthrough', response
-        elif name in ('reader-none', 'reader-assignment-is-not-return'):
+        elif name in ('reader-none', 'reader-assignment-is-not-return', 'reader-empty-string'):
             assert response['output']['messages'] == [], response
+        elif name in ('reader-string', 'reader-string-list', 'reader-mixed-list'):
+            messages = response['output']['messages']
+            assert [item['payload'] for item in messages] == (['one'] if name == 'reader-string' else ['one', 'two']), response
+            assert messages[0]['sourceMap'] == {'pollId': 'sample', 'origin': 'seeded'}, response
+            if name == 'reader-mixed-list':
+                assert messages[1]['sourceMap']['origin'] == 'override', response
         elif name == 'writer-assignment-is-not-return':
             assert response['output']['response'] == {'status': 'SENT', 'data': '', 'statusMessage': '', 'error': ''}, response
         elif name == 'reader-source-defaults':
@@ -95,8 +107,7 @@ def live_case(api, child, profile, ingress, evidence, reader):
     destination = model.find('destinationConnectors/connector')
     if reader:
         source.find('properties/pollConnectorProperties/pollingFrequency').text = '3600000'
-        source.find('properties/pythonScript').text = """from oie_python import Message
-assert 'poll' not in globals()
+        source.find('properties/pythonScript').text = """assert 'poll' not in globals()
 assert isinstance(sourceMap['pollId'], str)
 local_value = 'from-reader'
 sourceMap['local_value'] = local_value
@@ -147,8 +158,7 @@ raise AssertionError('after function return')
         'name': name, 'revision': 0, 'includeNewChannels': False, 'enabledChannelIds': {'string': channel_id},
         'disabledChannelIds': '', 'codeTemplates': {'codeTemplate': [{'@version': '4.6.0', 'id': template_id}]}}]}}
     write(folder / 'library-save.json', api.call('/codeTemplateLibraries', 'PUT', library))
-    writer = """from oie_python import Response, Status
-try:
+    writer = """try:
     return Response(Status.SENT, payload + '|writer')
 finally:
     connectorMap['writer_finally'] = 'applied'
@@ -160,7 +170,7 @@ raise AssertionError('after Writer return')
             "if (String(sourceMap.get('local_value')) !== 'from-reader') throw 'Missing Reader source metadata'; if (!sourceMap.containsKey('pollId')) throw 'Missing pollId';", 'JS source map'))
     destination.find('properties/pythonScript').text = writer
     destination.find('responseTransformer/elements').append(step(profile['id'],
-        "assert connectorMap['writer_finally'] == 'applied'\nmsg += '|response'", 'Python response mutation'))
+        "assert connectorMap['writer_finally'] == 'applied'\nresponse.status = Status.SENT\nmsg += '|response'", 'Python response mutation'))
     body = ET.tostring(model, encoding='unicode')
     (folder / 'channel.xml').write_text(body)
     saved = api.call('/channels/' + channel_id, 'PUT', body, 'application/xml')

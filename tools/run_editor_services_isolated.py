@@ -56,6 +56,15 @@ def scenario(api, child, profile, ingress, evidence, receipt):
     selected = call('selection formatting', source='left=1\nreturn {"value":1}\nright=2\n', operation='format',
                     selection={'startLineNumber': 2, 'endLineNumber': 2})
     assert selected['ok'] and 'return ' in selected['text'] and 'left' not in selected['text'] and 'right' not in selected['text'], selected
+    for role, name, fields in [('reader', 'Message', ('payload', 'source_map', 'destination_ids')),
+                               ('writer', 'Response', ('status', 'data', 'status_message', 'error'))]:
+        source = 'return ' + name + '('
+        signature = call('automatic ' + name + ' signature', source=source, role=role, operation='signature')
+        assert signature['ok'] and signature['signatures'], signature
+        assert all(field in signature['signatures'][0]['label'] for field in fields), signature
+    for role, source in [('writer', 'return Status.'), ('response-transformer', 'Status.')]:
+        statuses = call('automatic Status in ' + role, source=source, role=role)
+        assert statuses['ok'] and {'SENT', 'ERROR', 'QUEUED'} <= {item['name'] for item in statuses['items']}, statuses
     marker = evidence / 'authored-source-executed'
     assert not marker.exists()
     authored = 'open(' + repr(str(marker)) + ', "w").write("unexpected")\nlogger.'

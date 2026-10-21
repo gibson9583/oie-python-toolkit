@@ -84,6 +84,21 @@ class ScriptReturnTest(unittest.TestCase):
         else:
             self.fail('expected runtime error')
 
+    def test_reader_strings_mixed_envelopes_and_atomic_validation(self):
+        wire = {'sourceMap': {'pollId': 'sample', 'origin': 'default'}, 'destinationIds': [2],
+                'maps': {'globalMap': {'writable': True, 'values': {}}}}
+        result, _ = self.run_source("sourceMap['origin'] = 'reader'\nreturn ['one', '', Message('two', source_map={'origin':'override'}, destination_ids=[2])]", 'read', **wire)
+        self.assertEqual([entry['payload'] for entry in result['messages']], ['one', 'two'])
+        self.assertEqual([entry['sourceMap']['origin'] for entry in result['messages']], ['reader', 'override'])
+        self.assertEqual([entry['destinationIds'] for entry in result['messages']], [None, [2]])
+        for source in ("return ''", "return None", "pass"):
+            self.assertEqual(self.run_source(source, 'read', **wire)[0]['messages'], [])
+        self.assertEqual(self.run_source("return 'one'", 'read', **wire)[0]['messages'][0]['payload'], 'one')
+        for bad in ('None', 'b"bytes"', 'Message(None)', 'Message("bad", destination_ids=[3])'):
+            with self.subTest(value=bad), self.assertRaises(ContractError):
+                self.run_source("globalMap['changed'] = True\nreturn ['one', " + bad + "]", 'read', **wire)
+        self.assertEqual(wire['maps']['globalMap']['values'], {})
+
     def test_filter_replacement_and_invalid_results(self):
         wire = {'msg': {'kind': 'raw', 'text': 'before'}, 'maps': {
             'channelMap': {'writable': True, 'values': {}}}}
@@ -108,9 +123,36 @@ class ScriptReturnTest(unittest.TestCase):
                 self.assertIn(field, returned)
         self.assertEqual(self.run_source('return', 'read')[0]['messages'], [])
         self.assertEqual(self.run_source('return', 'write')[0]['response']['status'], 'SENT')
-        for role, source in [('read', 'return "bad"'), ('write', 'return {}'), ('call', 'return object()')]:
+        for role, source in [('read', 'return 7'), ('write', 'return {}'), ('call', 'return object()')]:
             with self.subTest(role=role), self.assertRaises(ContractError):
                 self.run_source(source, role)
+
+    def test_automatic_wrappers_are_context_specific_and_fresh(self):
+        from oie_python import Message, Response, Status, UnsupportedValue
+        for role in ('read', 'write', 'call', 'filter', 'transform'):
+            for response_transformer in ((False, True) if role == 'transform' else (False,)):
+                wire = {'role': role}
+                if role == 'call':
+                    wire['arguments'] = []
+                if role in ('filter', 'transform'):
+                    wire['msg'] = {'kind': 'raw', 'text': 'body'}
+                if response_transformer:
+                    wire['response'] = {'status': 'SENT'}
+                ctx = CONTEXTS[role](wire, ScriptLogger(4096))
+                values = ctx.script_globals()
+                self.assertIs(values['UnsupportedValue'], UnsupportedValue)
+                for name, expected in [('Message', Message if role == 'read' else None),
+                                       ('Response', Response if role == 'write' else None),
+                                       ('Status', Status if role == 'write' or response_transformer else None)]:
+                    self.assertIs(values.get(name), expected)
+                values['UnsupportedValue'] = None
+                self.assertIs(ctx.script_globals()['UnsupportedValue'], UnsupportedValue)
+        self.assertEqual(self.run_source('def emit():\n    return Message("body")\nreturn emit()', 'read')[0]['messages'][0]['payload'], 'body')
+        self.assertEqual(self.run_source('return Response(Status.ERROR, "ack")', 'write')[0]['response']['status'], 'ERROR')
+        self.assertEqual(self.run_source('Message = lambda value: value\nreturn Message(None)', 'read')[0]['messages'], [])
+        result, _ = self.run_source('response.status = Status.ERROR', 'transform',
+                                    msg={'kind': 'raw', 'text': 'body'}, response={'status': 'SENT'})
+        self.assertEqual(result['response']['status'], 'ERROR')
 
     def test_result_name_is_never_injected_or_used_as_output(self):
         for role in ('read', 'write', 'call', 'filter'):

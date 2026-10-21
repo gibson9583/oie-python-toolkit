@@ -100,7 +100,7 @@ def scenario(api, child, profile, ingress, evidence, receipt):
         folder = evidence / case['name']
         folder.mkdir()
         channel_id = str(uuid.uuid4())
-        source = 'from oie_python import Response, Status\n' + case['source'] + '\n'
+        source = case['source'] + '\n'
         queued_release = folder / 'release-queued-retry' if case.get('intermediate_queued') else None
         if queued_release is not None:
             # The first queue send can happen immediately after the initial

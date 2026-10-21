@@ -12,6 +12,7 @@ def context_source(role):
     lines = [
         'from typing import Any as _Any, Mapping as _Mapping, Optional as _Optional',
         'from oie_python._context import ScriptLogger as _Logger',
+        'from oie_python import UnsupportedValue',
         'from oie_python._maps import GlobalMap as _GlobalMap, ScriptMap as _ScriptMap',
         'logger: _Logger', 'phase: str', 'message: _Mapping[str, _Any]',
         'globalMap: _GlobalMap', 'globalChannelMap: _GlobalMap',
@@ -24,11 +25,11 @@ def context_source(role):
         lines += ['msg: _Any', 'tmp: _Any', 'has_tmp: bool']
         if role == 'response-transformer':
             lines += ['from oie_python._context import _ResponseFields as _ResponseFields',
-                      'response: _ResponseFields']
+                      'response: _ResponseFields', 'from oie_python import Status']
     elif role == 'writer':
-        lines += ['payload: _Optional[str]']
+        lines += ['payload: _Optional[str]', 'from oie_python import Response, Status']
     elif role == 'reader':
-        lines += ['sourceMap: _ScriptMap']
+        lines += ['sourceMap: _ScriptMap', 'from oie_python import Message']
     elif role == 'code-template':
         lines += ['arguments: list']
     return '\n'.join(lines) + '\n'
@@ -108,7 +109,7 @@ def analyze(request, sdk_path, package_paths):
         items = script.complete(line, column)
         items.sort(key=lambda item: item.name not in {'logger', 'phase', 'message', 'globalMap', 'globalChannelMap',
                    'configurationMap', 'channelMap', 'connectorMap', 'sourceMap', 'responseMap', 'msg', 'tmp',
-                   'has_tmp', 'response', 'payload', 'arguments'})
+                   'has_tmp', 'response', 'payload', 'arguments', 'Message', 'Response', 'Status', 'UnsupportedValue'})
         return {'items': [{'name': item.name, 'type': item.type,
                            'description': item.description[:512],
                            'prefixLength': item.get_completion_prefix_length()}

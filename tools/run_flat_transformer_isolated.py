@@ -78,7 +78,7 @@ def connector_case(api, child, profile, evidence, reader):
     model = ET.fromstring(channel_xml(channel_id, listener, profile['id'], marker=name, reader=reader))
     for path in PHASES.values():
         model.find(path + '/elements').clear()
-    source = logs(name) + ("assert 'poll' not in globals()\nassert isinstance(sourceMap['pollId'], str)\n" if reader else "from oie_python import Response\nreturn Response(data='writer|' + payload)\n")
+    source = logs(name) + ("assert 'poll' not in globals()\nassert isinstance(sourceMap['pollId'], str)\n" if reader else "return Response(data='writer|' + payload)\n")
     properties = model.find('sourceConnector/properties' if reader else 'destinationConnectors/connector/properties')
     properties.find('pythonScript').text = source
     (folder / 'channel-submitted.xml').write_text(ET.tostring(model, encoding='unicode'))

@@ -28,6 +28,12 @@ def cases():
     return [
         dict(name='text-bytes-routing', expression='[' + ','.join(messages) + ']', routes=[{0, 1, 2}, {0}, {0, 2}, {0, 1}], raw=['', '', 'AP8=', 'subset']),
         dict(name='single', expression="Message('single', " + metadata % 'single' + ")", routes=[{0, 1, 2}], raw=['single']),
+        dict(name='bare-string', prefix=defaults + "sourceMap['expected'] = 'single'\n", expression="'single'", routes=[{0, 1, 2}], raw=['single']),
+        dict(name='string-list', prefix=defaults, expression="['one', '', 'two']", routes=[{0, 1, 2}, {0, 1, 2}], raw=['one', 'two']),
+        dict(name='mixed-list', prefix=defaults, expression="['one', Message('two', source_map={'origin':'reader'}, destination_ids=[2])]", routes=[{0, 1, 2}, {0, 2}], raw=['one', 'two']),
+        dict(name='empty-string', expression="''", routes=[]),
+        dict(name='string-batch', prefix=defaults, expression="'one\\ntwo\\n'", routes=[{0, 1, 2}, {0, 1, 2}], raw=['one', 'two'], batch=True),
+        dict(name='string-then-invalid', expression="['first', None]", routes=[], error='not str or a Message'),
         dict(name='none', expression='None', routes=[]),
         dict(name='empty-list', expression='[]', routes=[]),
         dict(name='batch', expression="Message('one\\ntwo\\n', source_map={'origin':'reader','nested':{'id':42},'bytes':b'\\x00\\xff'}, destination_ids=[2])",
@@ -56,7 +62,7 @@ def execute_case(api, child, profile, evidence, case):
     model.find('name').text = 'Py Reader ' + case['name']
     model.find('nextMetaDataId').text = '4'
     model.find('sourceConnector/properties/pollConnectorProperties/pollingFrequency').text = '3600000'
-    source = "from oie_python import Message\n" + case.get('prefix', '') + "print('reader-case-" + channel_id + "')\nreturn " + case['expression'] + "\n"
+    source = case.get('prefix', '') + "print('reader-case-" + channel_id + "')\nreturn " + case['expression'] + "\n"
     model.find('sourceConnector/properties/pythonScript').text = source
     destinations = model.find('destinationConnectors')
     first = destinations.find('connector')
@@ -70,7 +76,6 @@ def execute_case(api, child, profile, evidence, case):
         for path in ('transformer/elements', 'responseTransformer/elements'):
             destination.find(path).clear()
         destination.find('properties/pythonScript').text = r"""
-from oie_python import Response
 assert sourceMap['origin'] == 'reader'
 assert sourceMap['nested']['id'] == 42
 assert sourceMap['bytes'] == b'\x00\xff'

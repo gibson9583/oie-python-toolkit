@@ -87,6 +87,10 @@ class EditorServiceTests(unittest.TestCase):
                 self.assertNotIn(absent, names)
                 self.assertNotIn('poll', names)
                 self.assertNotIn('result', names)
+                self.assertIn('UnsupportedValue', names)
+                for name, roles in {'Message': ('reader',), 'Response': ('writer',),
+                                    'Status': ('writer', 'response-transformer')}.items():
+                    self.assertEqual(name in names, role in roles, (role, name))
                 members = self.call('globalMap.', 'complete', role, line=1, column=10)['items']
                 self.assertTrue({'get', 'put'} <= {item['name'] for item in members})
                 logger = self.call('logger.', 'complete', role, line=1, column=7)['items']
@@ -130,14 +134,14 @@ class EditorServiceTests(unittest.TestCase):
     def test_connector_result_types_are_available_without_import_execution(self):
         for role, name, parameters in [('reader', 'Message', ('payload', 'source_map', 'destination_ids')),
                                       ('writer', 'Response', ('status', 'data', 'status_message', 'error'))]:
-            source = 'from oie_python import ' + name + '\nreturn ' + name + '('
-            result = self.call(source, 'signature', role, line=2, column=len(source.splitlines()[1]))
+            source = 'return ' + name + '('
+            result = self.call(source, 'signature', role, line=1, column=len(source))
             self.assertTrue(result['signatures'], result)
             label = result['signatures'][0]['label']
             for parameter in parameters:
                 self.assertIn(parameter, label)
-        source = 'from oie_python import Status\nreturn Status.'
-        result = self.call(source, 'complete', 'writer', line=2, column=len(source.splitlines()[1]))
+        source = 'return Status.'
+        result = self.call(source, 'complete', 'writer', line=1, column=len(source))
         self.assertTrue({'SENT', 'ERROR', 'QUEUED'} <= {item['name'] for item in result['items']})
 
     def test_document_and_selection_formatting_preserve_ast_strings_comments(self):

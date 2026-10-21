@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 """OIE Python SDK.
 
-Scripts import the result types from this package:
+Reader scripts receive Message; Writers receive Response and Status. Response
+transformers receive Status, and every script receives UnsupportedValue.
+Explicit imports remain supported, including from reusable modules:
 
     from oie_python import Message, Response, Status
 

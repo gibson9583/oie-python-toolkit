@@ -6,6 +6,8 @@ The bundled `oie_python` SDK has no third-party dependencies. Write the script b
 
 All script types receive `logger`, `phase`, read-only `message` metadata, and the complete `globalMap`, `globalChannelMap`, and `configurationMap`. Filter, Reader, Writer, and Python Function scripts return their output.
 
+`phase` is optional context metadata; scripts do not need to reference it. Python supplies a string identifying the execution surface, such as `source-filter` or `destination-transformer` (see the [context matrix](wiki/Contexts-and-message-flow.md)). Stock OIE 4.6/4.7 JavaScript also exposes `phase` in source/destination filters and transformers, but as a Java array: `phase[0]` is `"filter"` or `"transformer"`. JavaScript response transformers, Readers, and Writers do not receive that binding. Python exposes its surface string in those contexts too. Rebinding the Python name only changes the script binding; it does not change engine routing or error classification.
+
 | Context | Other available variables |
 | --- | --- |
 | Source / destination filter | `msg`, `has_tmp`, `tmp` when available |
@@ -14,6 +16,8 @@ All script types receive `logger`, `phase`, read-only `message` metadata, and th
 | Reader | Writable invocation-local `sourceMap` |
 | Writer | `payload` |
 | Python Function | `arguments` |
+
+`Message` is available automatically in Readers; `Response` and `Status` in Writers; and `Status` in response transformers. Every script receives `UnsupportedValue` for inspecting unsupported engine map values. Explicit imports from `oie_python` remain supported and are required in separately imported modules. Other SDK types, including exception classes, require explicit imports.
 
 `message` contains metadata, not a live Java `connectorMessage`. The [map availability table](#maps) below covers all seven map variables.
 
@@ -108,11 +112,9 @@ All scripts can use `logger.debug/info/warning/error`. `print()` and writes to s
 
 ## Reader
 
-Return `None`, one `Message`, or a bounded list of `Message`. `None` or an empty list emits no messages; an empty string/bytes payload in a `Message` emits a real message. A Reader receives a fresh writable `sourceMap` with `pollId` set to a new UUID in live execution, or `"sample"` in synthetic Test. There is no `poll` script global. Set entries through `sourceMap.put(...)` or `sourceMap["key"] = value`; rebinding `sourceMap` only changes the local name. Every returned `Message` inherits the final map values, and its own `source_map` overrides matching keys, including `pollId`. This map is not storage for later polls. It accepts supported values including `None`; invalid values or reserved keys fail validation even when returning `None` or `[]`.
+Return `None`, a string, one `Message`, or a bounded list mixing strings and `Message` objects. `None`, an empty list, or an empty bare string emits no messages; empty bare strings in a list are skipped; an empty string/bytes payload in a `Message` emits a real message. A Reader receives a fresh writable `sourceMap` with `pollId` set to a new UUID in live execution, or `"sample"` in synthetic Test. There is no `poll` script global. Set entries through `sourceMap.put(...)` or `sourceMap["key"] = value`; rebinding `sourceMap` only changes the local name. Every returned `Message` inherits the final map values, and its own `source_map` overrides matching keys, including `pollId`. This map is not storage for later polls. It accepts supported values including `None`; invalid values or reserved keys fail validation even when returning `None` or `[]`.
 
 ```python
-from oie_python import Message
-
 return Message(
     '{"patient_id":"P123"}',
     source_map={"origin": "python-reader"},
@@ -122,7 +124,7 @@ return Message(
 
 `destination_ids=None` selects all enabled destinations; `[]` selects none; a list selects known numeric metadata IDs. Reserved keys in the Reader `sourceMap` and each `Message.source_map` (`destinationSet`, `batchId`, `batchComplete`, `batchSequenceId`, `reprocessed`, and `replaced`) are rejected. Binary payloads use the engine's base64 representation and are forbidden with Process Batch enabled.
 
-`Message` is the Python counterpart of the JavaScript Reader's `RawMessage`. Its `payload` becomes the engine's raw text or raw bytes, `destination_ids` becomes the destination metadata ID list, and `source_map` overrides the invocation defaults to form the source map. Import `Message` from `oie_python`; no Java object or additional RawMessage wrapper is needed. Bare strings are not Reader results: wrap them in `Message(...)`.
+`Message` is the Python counterpart of the JavaScript Reader's `RawMessage`. Its `payload` becomes the engine's raw text or raw bytes, `destination_ids` becomes the destination metadata ID list, and `source_map` overrides the invocation defaults to form the source map. `Message` is supplied automatically in Reader scripts; no Java object or additional RawMessage wrapper is needed. Use `return "hello"` for plain text, or `return ["one", "two"]` for multiple text messages. Strings inherit `sourceMap` and select all enabled destinations. Use `Message(...)` for binary data, per-message source values, destination selection, or an explicitly empty payload. The complete supplied list counts toward the poll limit, including skipped empty strings.
 
 The complete list and map changes are validated before the first dispatch. Shared map changes commit before dispatch; an admission failure does not roll them back. The worker is released before engine admission, and each dispatch is finalized. If a later admission fails, earlier messages remain admitted and the poll reports partial completion. The toolkit does not replay the list or acknowledge/checkpoint an external source automatically.
 
@@ -131,8 +133,6 @@ The complete list and map changes are validated before the first dispatch. Share
 `payload` is the outgoing engine string, or `None` when no payload is available. Return `None` for SENT with empty data, a string for SENT with that data, an explicit `Response`, or a bare `Status` for that status with empty data. Dictionaries and bytes are rejected; serialize JSON yourself.
 
 ```python
-from oie_python import Response, Status
-
 # Perform your operation using payload.
 return Response(status=Status.SENT, data="accepted", status_message="Completed")
 ```
