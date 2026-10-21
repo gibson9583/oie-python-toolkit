@@ -26,7 +26,7 @@ A false overall source filter prevents destination processing. A false destinati
 
 ### Filter editor
 
-![Python filter editor with a boolean rule and synthetic sample controls](assets/python-filter-sample.png)
+![Web Administrator source filter editor with a Python rule and validation controls](assets/python-filter-editor.png)
 
 Select the script environment, write a boolean rule, and use **Validate Python** before **Test sample**. A sample's `accepted` result describes this rule invocation; the configured AND/OR expression still controls the live filter outcome. See [sample contexts](Editor-testing-and-troubleshooting.md#sample-contexts) for the input format.
 

@@ -53,18 +53,6 @@ Package code runs as trusted channel-author code with the engine service account
 
 ## Save, prepare, and deploy are separate operations
 
-```mermaid
-flowchart LR
-    Draft[Edit profile or script] --> Save[Save revision]
-    Save --> Prepare[Prepare environment on node]
-    Prepare --> Ready[Ready artifact and dependency lock]
-    Ready --> Deploy[Deploy consuming channel]
-    Deploy --> Bind[Capture script and environment]
-    Bind --> Run[Invoke captured deployment]
-    Run --> Edit[Later saved changes]
-    Edit --> Save
-```
-
 | Change | Necessary follow-up | Existing deployed channel |
 | --- | --- | --- |
 | Python rule, step, Reader, or Writer source | Save channel and redeploy | Keeps captured source until redeploy |

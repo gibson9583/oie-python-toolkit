@@ -56,23 +56,7 @@ Fresh globals do not mean a fresh Python process. Imported modules can remain ca
 
 ## Where the documents travel
 
-This is a simplified logical flow. Source/destination queues, destination chains, batch processing, response selection, response validation, retries, and connector settings govern the stock engine's actual ordering and timing. It does not promise synchronous execution of every destination or one response-transformer call per incoming message.
-
-```mermaid
-flowchart TD
-    Input[Source connector or Python Reader Message] --> Admission[Engine admission and inbound conversion]
-    Admission --> SF{Source filter rules}
-    SF -->|accepted| ST[Source transformer steps]
-    SF -->|rejected| SourceFiltered[Source FILTERED]
-    ST --> DF{Selected destination filter rules}
-    DF -->|accepted| DT[Destination transformer steps]
-    DF -->|rejected| DestFiltered[Destination FILTERED]
-    DT --> Send[Destination connector or Python Writer]
-    Send --> Validate[Native response validation and immediate retry decision]
-    Validate -->|retry| Send
-    Validate -->|send loop finished| Reply[Optional response transformer]
-    Reply --> Policy[Engine asynchronous queue and source response policy]
-```
+Messages pass through source filtering and transformation, then the selected destinations’ filters, transformers, and connectors. Responses follow the configured response processing. Source/destination queues, destination chains, batch processing, response selection, response validation, retries, and connector settings govern the stock engine's actual ordering and timing. This ordering does not imply synchronous execution of every destination or one response-transformer call per incoming message.
 
 JavaScript and Python rules/steps participate in the same stock ordered execution. A preceding JavaScript step's document and map changes are visible to Python; committed Python changes are visible to following JavaScript. Functions execute only at the point where a JavaScript caller invokes them.
 

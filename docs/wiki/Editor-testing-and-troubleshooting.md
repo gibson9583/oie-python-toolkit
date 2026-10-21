@@ -49,7 +49,7 @@ Sample execution never dispatches Reader messages or writes live engine maps. It
 
 ![Python transformer editor showing the selected environment, Python source, and validation and sample-test actions](assets/python-transformer-editor.png)
 
-The transformer source shown here was formatted with **Format Document**. Its completed JSON sample shows the trimmed `msg["patient_id"]`, the staged `channelMap["patientId"]` change, and the captured `Normalized patient 1001` log. Choose a sample whose `msg.kind` matches the real datatype, then inspect the document, maps, and diagnostics. A transformer changes `msg` or `tmp` directly; it does not return a replacement value.
+The transformer source shown here was formatted with **Format Document**. It trims `msg["patient_id"]`, writes `channelMap["patientId"]`, and logs the normalized identifier. Use **Test sample** to inspect those changes and the captured log. Choose a sample whose `msg.kind` matches the real datatype, then inspect the document, maps, and diagnostics. A transformer changes `msg` or `tmp` directly; it does not return a replacement value.
 
 ### Permissions
 

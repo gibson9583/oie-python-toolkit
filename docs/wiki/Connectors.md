@@ -185,19 +185,7 @@ List order controls admission order within the poll. Destination execution and c
 
 ### Admission is not an external checkpoint
 
-The live Reader proceeds as follows:
-
-```mermaid
-flowchart TD
-    A[Execute Python poll] --> B[Validate all envelopes and shared-map changes]
-    B --> C[Apply shared-map changes]
-    C --> D[Leave Python admission scope]
-    D --> E[Dispatch next envelope or batch through engine]
-    E --> F[Check and finalize dispatch]
-    F --> G{More envelopes?}
-    G -->|Yes| E
-    G -->|No| H[Poll complete]
-```
+The live Reader executes the script, validates all returned envelopes and shared-map changes, then applies those map changes. It leaves the Python admission scope before dispatching and finalizing each envelope or batch through the engine.
 
 A script exception or invalid result prevents this invocation's map changes from being applied and dispatches no messages. Once validation succeeds, shared-map changes commit **before** engine admission. A subsequent admission failure does not roll them back. External I/O performed inside Python is outside this map/result validation boundary.
 
