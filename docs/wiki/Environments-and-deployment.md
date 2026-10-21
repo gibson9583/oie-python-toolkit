@@ -25,6 +25,12 @@ The actual interpreter version is displayed in the UI. Runtime code requires CPy
 
 The vanilla definition is protected. Create a separate profile for additional packages or another interpreter selection. New scripts default to vanilla. A missing/null legacy profile reference also selects the built-in default; a nonempty unknown UUID does not silently fall back to it.
 
+## Script Environments screen
+
+![Script Environments settings showing an environment profile and its preparation controls](assets/script-environments.png)
+
+The **Script Environments** screen brings together the saved profile, runtime and package-source selections, requirements, preparation state, and usage. Check readiness on the node that will execute the script before selecting the profile and deploying a channel.
+
 ## Custom packages
 
 1. Ask the operator to make the required runtime and package source available if they are not already listed. Local executable paths and package credentials belong in operator policy, not channel source.

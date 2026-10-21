@@ -24,6 +24,12 @@ return has_patient(msg)
 
 A false overall source filter prevents destination processing. A false destination filter skips that destination. An exception or invalid result is a filter error rather than a normal rejection. There is no Python response-filter rule.
 
+### Filter editor
+
+![Python filter editor with a boolean rule and synthetic sample controls](assets/python-filter-sample.png)
+
+Select the script environment, write a boolean rule, and use **Validate Python** before **Test sample**. A sample's `accepted` result describes this rule invocation; the configured AND/OR expression still controls the live filter outcome. See [sample contexts](Editor-testing-and-troubleshooting.md#sample-contexts) for the input format.
+
 ### AND, OR, short circuit, and ordering
 
 The engine compiles the configured mixed rule list; Python does not reimplement rule precedence. Existing AND/OR precedence and short circuit apply to Python and JavaScript rules together. In particular, a false left side of an AND and a true left side of an OR can skip the next rule. Use Python `not`, `and`, and `or` **inside** a rule; configure cross-rule operators in the filter editor. For a nontrivial expression, verify its behavior in the actual channel rather than assuming visual grouping adds parentheses.

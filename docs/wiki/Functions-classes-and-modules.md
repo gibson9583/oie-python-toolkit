@@ -24,6 +24,10 @@ The class itself is not exported to JavaScript or registered as a Python module.
 4. Select the applicable source filter/transformer, destination filter/transformer, or destination response transformer contexts.
 5. Enable the containing library for the consuming channel. Save, validate, and deploy that channel.
 
+![Python Function code-template editor with function name, environment, Python source containing a class, and validation result](assets/python-function.png)
+
+The **Function name** identifies the JavaScript callable. The editor shows the selected environment and validates Python source containing a class. Select calling contexts and enable the containing library in the host code-template configuration before deploying a consuming channel.
+
 For `normalize_patient`, paste this complete template body:
 
 ```python

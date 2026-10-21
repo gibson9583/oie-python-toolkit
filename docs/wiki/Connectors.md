@@ -8,6 +8,12 @@ Write the script body directly and return its output. The runtime handles functi
 
 The supported engine/editor baseline and qualification procedure are recorded in [validation](../validation.md). Connector editing is available in the Web Administrator; the Swing Administrator has placeholder panels. Select a prepared environment, save the channel and deploy it to use the saved script. See [environments and deployment](Environments-and-deployment.md) for profile readiness, node locality and deployment snapshots.
 
+## Reader editor
+
+![Python Reader editor with polling settings, script environment, Python source, and successful validation](assets/python-reader.png)
+
+The Reader panel shows polling settings, a ready environment, and source returning two SDK `Message` values with shared and per-message source-map entries. **Validate Python** has succeeded; this checks compilation and the environment without running the Reader. Use **Test sample** to preview returned messages before deploying the polling channel.
+
 ## Reader: one invocation per poll
 
 A Reader receives these context variables:
@@ -217,6 +223,10 @@ A Writer receives:
 | `configurationMap` | Read-only configuration snapshot. |
 
 There is no `msg`, `tmp`, live `connectorMessage`, or existing `response` object in the Writer script. Use a transformer before the Writer when you need typed message editing. Assigning a new value to the local `payload` name does not change an engine document; use it as input to your operation.
+
+![Python Writer editor showing the environment, response-producing source, and successful validation](assets/python-writer.png)
+
+The Writer panel shows source that reads serialized `payload` and returns an SDK response. **Validate Python** has succeeded; this does not execute delivery or preview the response. Use **Test sample** for a synthetic execution, then exercise native response validation, queues, and retries in the deployed channel.
 
 ### Payload selection and metadata
 

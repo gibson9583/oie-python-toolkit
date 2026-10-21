@@ -10,6 +10,8 @@ New Python rules, steps, Readers, and Writers select that environment. For third
 
 The examples below use JSON object messages and no outbound template. Configure the channel's data types accordingly. Do not paste JSON dictionary operations into a RAW or XML context without the conversion described in [Filters and transformers](Filters-and-transformers.md).
 
+For a visual orientation, see the [Script Environments screen](Environments-and-deployment.md#script-environments-screen), [filter editor](Filters-and-transformers.md#filter-editor), and [transformer editor](Editor-testing-and-troubleshooting.md#transformer-editor).
+
 ## 1. Produce one JSON message
 
 Select **Python Reader** as the source connector. This fixture emits one message **on every poll**, so use a controlled test channel and stop it when finished.

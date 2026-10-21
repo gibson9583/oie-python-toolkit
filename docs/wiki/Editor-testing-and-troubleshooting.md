@@ -27,6 +27,10 @@ Formatting is conservative. Selection formatting covers the full touched lines. 
 
 If Monaco or its grammar cannot load, the editable text fallback preserves the script but cannot provide the full Monaco experience. A functioning text area is not evidence that completion or formatting is available. Check extension assets, runtime readiness, permissions, and diagnostics before assuming an editor defect.
 
+![Python Reader IntelliSense at sourceMap.p showing put and putAll suggestions](assets/python-intellisense.png)
+
+In this **Python Reader**, typing `sourceMap.p` offers methods including `put` and `putAll`: the Reader's `sourceMap` is writable and supplies defaults for returned messages. Downstream `sourceMap` is read-only. Completion suggestions help discover Python and SDK APIs in the selected environment; use the context reference to check which values and operations apply.
+
 ## Save, Validate, Test, and deploy
 
 | Action | What it establishes | What it does not establish |
@@ -40,6 +44,12 @@ If Monaco or its grammar cannot load, the editable text fallback preserves the s
 Use the plugin's **Validate Python** button for Python checks. The host's generic validation does not substitute for it. Python Function validation is also integrated with the code-template provider. There is no standalone sample-test action for Python Function templates; test their behavior by invoking them in a consuming channel.
 
 Sample execution never dispatches Reader messages or writes live engine maps. It **does execute the code**, including imports and any external HTTP, database, or filesystem I/O. Use safe fixtures, test systems, and controlled credentials. If execution times out or the browser loses the response, external side effects may already have happened; inspect the target before manually retrying.
+
+### Transformer editor
+
+![Python transformer editor showing the selected environment, Python source, and validation and sample-test actions](assets/python-transformer-editor.png)
+
+The transformer source shown here was formatted with **Format Document**. Its completed JSON sample shows the trimmed `msg["patient_id"]`, the staged `channelMap["patientId"]` change, and the captured `Normalized patient 1001` log. Choose a sample whose `msg.kind` matches the real datatype, then inspect the document, maps, and diagnostics. A transformer changes `msg` or `tmp` directly; it does not return a replacement value.
 
 ### Permissions
 
