@@ -94,27 +94,18 @@ function TemplatePanel({ template, properties, onChange, readOnly }) {
             </div>
             <div className="flex flex-wrap items-center gap-2">
                 <button type="button" className="btn" onClick={() => setRefresh(value => value + 1)}>Refresh environments</button>
-                <button type="button" className="btn" onClick={() => { platform.store.setState('pythonReturnPath', platform.router.currentPath()); platform.router.navigate('/settings?tab=Script%20Environments'); }}>Manage environments</button>
             </div>
         </fieldset>
         {error && <p role="alert">{error} Your function draft is preserved.</p>}
         {selected && <p className="text-text-dim">{selected.name} · {environmentState(selected)}{selected.readiness?.message ? `: ${selected.readiness.message}` : ''}</p>}
         {profiles && properties.environmentProfileId && !selected && <p role="alert">This script environment is unavailable. Select an available environment before deploying.</p>}
         <PythonEditor value={properties.pythonScript || ''} onChange={value => change('pythonScript', value)} readOnly={readOnly} role="code-template" profile={selected} catalog={profiles}/>
-        <p className="text-text-dim" style={{ maxWidth: '72ch' }}>
-            Read <code>arguments</code> directly and <code>return</code> a JSON-compatible value.
-            {' '}<code>logger</code> and <code>print()</code> write captured script output.
-            {' '}The function name exposes this template to JavaScript in source, destination, and response transformers.
-            {' '}Assign the returned value where it is needed.
-            {' '}The calling message’s maps, <code>globalMap</code>, <code>globalChannelMap</code>, and <code>configurationMap</code> are available directly.
-        </p>
         <details>
             <summary>Advanced</summary>
             <fieldset disabled={readOnly} className="min-w-0" style={{ border: 0, margin: 0, padding: 0 }}>
                 <label className="field mt-3">Invocation timeout (milliseconds)<input type="number" min="100" step="1" value={properties.timeoutMillis} onChange={event => change('timeoutMillis', Number(event.target.value))}/></label>
             </fieldset>
         </details>
-        <p className="text-text-dim" style={{ maxWidth: '72ch' }}>Saving preserves the draft. Redeploy consuming channels to use changed Python source or a newly prepared environment.</p>
         {!readOnly && <div><button type="button" className="btn" disabled={busy || !canValidate()} onClick={validate}>{busy ? 'Validating Python…' : 'Validate Python'}</button></div>}
         {result && <div role="status" aria-live="polite">
             <strong>{result.status === 'valid' ? 'Python function validated' : result.status === 'invalid' ? 'Python function needs attention' : 'Python validation unavailable'}</strong>
