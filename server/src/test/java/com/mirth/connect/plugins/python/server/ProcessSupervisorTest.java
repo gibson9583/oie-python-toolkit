@@ -52,6 +52,22 @@ class ProcessSupervisorTest {
             assertFalse(ProcessControl.hasUncertainOwnership(), "Exited group must not block a subsequent command");
         }
     }
+    @Test void groupProbeReportsLiveGroupsAndExitedGroups() throws Exception {
+        assumeFalse(ProcessControl.isWindows());
+        Path python = Interpreters.resolve("python3");
+        Process leader = new ProcessBuilder(python.toString(), "-I", "-c",
+                "import os,time\nos.setsid()\nprint('ready',flush=True)\ntime.sleep(60)\n")
+                .redirectErrorStream(true).start();
+        try {
+            assertEquals("ready", new java.io.BufferedReader(new java.io.InputStreamReader(leader.getInputStream())).readLine());
+            assertTrue(ProcessControl.groupExists(leader.pid()), "Live process group must be reported as present");
+            assertTrue(ProcessControl.killTree(leader, 0), "Group kill must be confirmed");
+            assertFalse(ProcessControl.groupExists(leader.pid()), "Exited process group must be reported as absent");
+            assertFalse(ProcessControl.hasUncertainOwnership());
+        } finally {
+            if (leader.isAlive()) leader.destroyForcibly();
+        }
+    }
     @Test void supervisorRetainsTheMainCommandsNonzeroExitStatus() throws Exception {
         assumeFalse(ProcessControl.isWindows());
         Path python = Interpreters.resolve("python3");
